@@ -81,7 +81,7 @@ jobs:
     environment: ${{ needs.setup.outputs.environment }}
     outputs:
       image_digest: ${{ steps.push.outputs.digest }}
-      full_image_name: ${{ steps.push.outputs.full_image_name }}
+      full_image_name: ${{ steps.image.outputs.full_image_name }}
     
     steps:
       - uses: actions/checkout@v5
