@@ -97,26 +97,16 @@ jobs:
               "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
             }
       
-      - name: Get ACR Credentials
+      # Login to ACR using Service Principal (no admin credentials needed!)
+      # The Service Principal has Contributor role which includes AcrPush
+      - name: Login to ACR
+        run: |
+          az acr login --name ${{ secrets.ACR_NAME }}
+      
+      - name: Set ACR Info
         id: acr
         run: |
-          ACR_NAME="${{ secrets.ACR_NAME }}"
-          ACR_LOGIN_SERVER="${ACR_NAME}.azurecr.io"
-          
-          # Get ACR credentials
-          ACR_PASSWORD=$(az acr credential show --name $ACR_NAME --query "passwords[0].value" -o tsv)
-          
-          echo "::add-mask::$ACR_PASSWORD"
-          echo "login_server=$ACR_LOGIN_SERVER" >> $GITHUB_OUTPUT
-          echo "username=$ACR_NAME" >> $GITHUB_OUTPUT
-          echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
-      
-      - name: Login to ACR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ steps.acr.outputs.login_server }}
-          username: ${{ steps.acr.outputs.username }}
-          password: ${{ steps.acr.outputs.password }}
+          echo "login_server=${{ secrets.ACR_NAME }}.azurecr.io" >> $GITHUB_OUTPUT
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
