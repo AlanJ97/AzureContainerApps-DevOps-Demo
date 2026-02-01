@@ -110,6 +110,19 @@ jobs:
         run: |
           echo "✅ Validating dev environment..."
           terraform validate
+      
+      - name: Terraform Plan (Dev) - Preview Changes
+        working-directory: terraform/environments/dev
+        run: |
+          echo "📋 Generating Terraform plan preview..."
+          terraform plan -input=false -no-color | head -100
+        continue-on-error: true
+        env:
+          # These need to be set for plan to work (even without applying)
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
 
   # ===========================================================================
   # Job 3: Security Scan - Python (Bandit SAST)
