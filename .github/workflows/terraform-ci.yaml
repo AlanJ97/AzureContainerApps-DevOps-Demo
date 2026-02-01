@@ -173,7 +173,7 @@ jobs:
         id: plan
         working-directory: terraform/environments/dev
         run: |
-          terraform plan -no-color -input=false -out=tfplan 2>&1 | tee plan_output.txt
+          terraform plan -var-file=terraform.tfvars -no-color -input=false -out=tfplan 2>&1 | tee plan_output.txt
           echo "plan_output<<EOF" >> $GITHUB_OUTPUT
           cat plan_output.txt | head -100 >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -248,7 +248,7 @@ jobs:
         id: plan
         working-directory: terraform/environments/prod
         run: |
-          terraform plan -no-color -input=false -out=tfplan 2>&1 | tee plan_output.txt
+          terraform plan -var-file=terraform.tfvars -no-color -input=false -out=tfplan 2>&1 | tee plan_output.txt
           echo "plan_output<<EOF" >> $GITHUB_OUTPUT
           cat plan_output.txt | head -100 >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT

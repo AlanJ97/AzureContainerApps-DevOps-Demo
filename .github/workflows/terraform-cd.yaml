@@ -105,7 +105,7 @@ jobs:
         run: terraform validate
       
       - name: Terraform Plan
-        run: terraform plan -out=tfplan -input=false
+        run: terraform plan -var-file=terraform.tfvars -out=tfplan -input=false
       
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
