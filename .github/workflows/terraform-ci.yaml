@@ -161,9 +161,24 @@ jobs:
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
       
-      - name: Terraform Init
-        working-directory: terraform/environments/dev
-        run: terraform init
+      # DEBUG: Check secret values - DELETE THIS AFTER DEBUGGING
+      - name: Debug - Check Secrets
+        run: |
+          echo "=== DEBUG: Checking ARM environment variables ==="
+          echo "ARM_TENANT_ID length: ${#ARM_TENANT_ID}"
+          echo "ARM_TENANT_ID first 8 chars: ${ARM_TENANT_ID:0:8}"
+          echo "ARM_TENANT_ID last 4 chars: ${ARM_TENANT_ID: -4}"
+          echo "ARM_CLIENT_ID length: ${#ARM_CLIENT_ID}"
+          echo "ARM_CLIENT_ID first 8 chars: ${ARM_CLIENT_ID:0:8}"
+          echo "ARM_SUBSCRIPTION_ID length: ${#ARM_SUBSCRIPTION_ID}"
+          echo "ARM_SUBSCRIPTION_ID first 8 chars: ${ARM_SUBSCRIPTION_ID:0:8}"
+          echo "ARM_CLIENT_SECRET length: ${#ARM_CLIENT_SECRET}"
+          echo "=== END DEBUG ==="
+      
+      # COMMENTED OUT FOR DEBUGGING - UNCOMMENT AFTER FIX
+      # - name: Terraform Init
+      #   working-directory: terraform/environments/dev
+      #   run: terraform init
       
       - name: Terraform Validate
         working-directory: terraform/environments/dev
@@ -236,9 +251,24 @@ jobs:
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
       
-      - name: Terraform Init
-        working-directory: terraform/environments/prod
-        run: terraform init
+      # DEBUG: Check secret values - DELETE THIS AFTER DEBUGGING
+      - name: Debug - Check Secrets
+        run: |
+          echo "=== DEBUG: Checking ARM environment variables ==="
+          echo "ARM_TENANT_ID length: ${#ARM_TENANT_ID}"
+          echo "ARM_TENANT_ID first 8 chars: ${ARM_TENANT_ID:0:8}"
+          echo "ARM_TENANT_ID last 4 chars: ${ARM_TENANT_ID: -4}"
+          echo "ARM_CLIENT_ID length: ${#ARM_CLIENT_ID}"
+          echo "ARM_CLIENT_ID first 8 chars: ${ARM_CLIENT_ID:0:8}"
+          echo "ARM_SUBSCRIPTION_ID length: ${#ARM_SUBSCRIPTION_ID}"
+          echo "ARM_SUBSCRIPTION_ID first 8 chars: ${ARM_SUBSCRIPTION_ID:0:8}"
+          echo "ARM_CLIENT_SECRET length: ${#ARM_CLIENT_SECRET}"
+          echo "=== END DEBUG ==="
+      
+      # COMMENTED OUT FOR DEBUGGING - UNCOMMENT AFTER FIX
+      # - name: Terraform Init
+      #   working-directory: terraform/environments/prod
+      #   run: terraform init
       
       - name: Terraform Validate
         working-directory: terraform/environments/prod
