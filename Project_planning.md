@@ -8,16 +8,23 @@
 
 | # | Phase | Task | Status |
 |---|-------|------|--------|
-| 1 | **App** | Create simple FastAPI app (health, info, metrics endpoints) | ⬜ |
-| 2 | **Docker** | Write multi-stage Dockerfile | ⬜ |
-| 3 | **IaC** | Create Terraform modules (ACR, ACA, Log Analytics, App Insights) | ⬜ |
-| 4 | **IaC** | Set up environment folders (dev, prod) with tfvars | ⬜ |
-| 5 | **Git** | Initialize GitHub repo with branch protection | ⬜ |
-| 6 | **CI** | GitHub Action: Lint, Test, Security Scan (PR trigger) | ⬜ |
-| 7 | **CD** | GitHub Action: Build, Push ACR, Deploy ACA (main trigger) | ⬜ |
-| 8 | **HA** | Configure min_replicas=2, health probes | ⬜ |
-| 9 | **Observability** | Configure Log Analytics + App Insights + Grafana | ⬜ |
-| 10 | **Docs** | Write README with architecture diagram | ⬜ |
+| 1 | **App** | Create simple FastAPI app (health, info, metrics endpoints) | ✅ |
+| 2 | **Docker** | Write multi-stage Dockerfile | ✅ |
+| 3 | **IaC** | Create Terraform modules (ACR, ACA, Log Analytics, App Insights) | ✅ |
+| 4 | **IaC** | Set up environment folders (dev, prod) with tfvars | ✅ |
+| 5 | **Git** | Initialize GitHub repo with branch protection | ✅ |
+| 6 | **CI** | GitHub Action: Lint, Test, Security Scan (PR trigger) | ✅ |
+| 7 | **CD** | GitHub Action: Build, Push ACR, Deploy ACA (main trigger) | ✅ |
+| 8 | **IaC** | Create Azure Storage for Terraform state (backend) | ✅ |
+| 9 | **IaC** | Create Service Principal for GitHub Actions auth | ✅ |
+| 10 | **IaC** | Configure GitHub Secrets for Azure authentication | ✅ |
+| 11 | **IaC** | Terraform CI passing (fmt, validate, plan) | ✅ |
+| 12 | **Deploy** | Run Terraform CD to deploy infrastructure (dev) | ⬜ ← NEXT |
+| 13 | **Deploy** | Run Terraform CD to deploy infrastructure (prod) | ⬜ |
+| 14 | **Deploy** | Run App CD to build/push/deploy container (dev) | ⬜ |
+| 15 | **HA** | Configure min_replicas=2, health probes | ✅ (in tfvars) |
+| 16 | **Observability** | Configure Log Analytics + App Insights | ✅ (in module) |
+| 17 | **Docs** | Write README with architecture diagram | ⬜ |
 
 ---
 
