@@ -1,6 +1,6 @@
 # Project Planning - Azure Container Apps DevOps Demo
 
-> **Purpose:** Interview preparation project showcasing full DevOps lifecycle on Azure Container Apps.
+> **Purpose:** Full DevOps lifecycle demonstration on Azure Container Apps.
 
 ---
 
