@@ -12,15 +12,13 @@ terraform {
     }
   }
 
-  # Backend configuration - uncomment after creating storage account
-  # backend "azurerm" {
-  #   resource_group_name  = "rg-terraform-state"
-  #   storage_account_name = "stterraformstatedev"
-  #   container_name       = "tfstate"
-  #   key                  = "dev.terraform.tfstate"
-  #   use_oidc             = true
-  #   use_azuread_auth     = true
-  # }
+  # Backend configuration for remote state
+  backend "azurerm" {
+    resource_group_name  = "rg-terraform-state"
+    storage_account_name = "stterraformacademo"
+    container_name       = "tfstate-dev"
+    key                  = "terraform.tfstate"
+  }
 }
 
 provider "azurerm" {
