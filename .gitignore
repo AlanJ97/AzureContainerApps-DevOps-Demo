@@ -60,13 +60,42 @@ scripts/.azure-secrets.json
 .DS_Store
 Thumbs.db
 
-# Terraform (for later)
+# Terraform
+# https://github.com/github/gitignore/blob/main/Terraform.gitignore
 .terraform/
+**/.terraform/*
 *.tfstate
 *.tfstate.*
-*.tfvars
-!*.tfvars.example
+crash.log
+crash.*.log
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Lock files (keep them for reproducibility)
 .terraform.lock.hcl
+!*.lock.hcl
+
+# CLI configuration
+.terraformrc
+terraform.rc
+
+# Plan files
+*.tfplan
+*.plan
+
+# Sensitive variable files
+*.auto.tfvars
+secrets.tfvars
+backend.hcl
+
+# Keep tfvars for demo (uncomment to exclude)
+# *.tfvars
+# *.tfvars.json
+!*.tfvars.example
 
 # Logs
 *.log
