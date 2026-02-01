@@ -2,36 +2,69 @@
 
 This folder contains utility scripts for project setup and maintenance.
 
-## Available Scripts
+## 📋 Available Scripts
 
-| Script | Description |
-|--------|-------------|
-| `github-setup.ps1` | PowerShell script to create and configure GitHub repository |
-| `github-setup.sh` | Bash script to create and configure GitHub repository |
+| Script | Description | Run Order |
+|--------|-------------|-----------|
+| `github-setup.ps1` | Create and configure GitHub repository | 1 |
+| `azure-terraform-backend.ps1` | Create Storage Account for Terraform state | 2 |
+| `azure-service-principal.ps1` | Create Azure Service Principal for CI/CD | 3 |
+| `github-secrets.ps1` | Set GitHub Secrets from Service Principal | 4 |
+| `github-secrets-post-terraform.ps1` | Set additional secrets after Terraform apply | 5 |
 
-## GitHub Setup
+---
 
-### Prerequisites
-- [GitHub CLI](https://cli.github.com/) installed
-- Authenticated with `gh auth login`
-- Local git repository initialized with commits
+## 🚀 Setup Order
 
-### Usage
-
-**PowerShell (Windows):**
+### Step 1: GitHub Repository (Already Done)
 ```powershell
 .\scripts\github-setup.ps1
 ```
 
-**Bash (Linux/macOS/WSL):**
-```bash
-chmod +x scripts/github-setup.sh
-./scripts/github-setup.sh
+### Step 2: Terraform Backend Storage
+```powershell
+.\scripts\azure-terraform-backend.ps1
 ```
+Creates Azure Storage Account for remote Terraform state.
 
-### What it does
-1. Creates a public GitHub repository
-2. Pushes all local commits
-3. Adds relevant topics (azure, devops, fastapi, terraform, etc.)
-4. Configures repository settings (issues, projects, delete branch on merge)
-5. Opens the repository in your browser
+### Step 3: Azure Service Principal
+```powershell
+.\scripts\azure-service-principal.ps1
+```
+Creates Service Principal and saves credentials to `scripts/.azure-secrets.json`.
+
+### Step 4: GitHub Secrets
+```powershell
+.\scripts\github-secrets.ps1
+```
+Reads `.azure-secrets.json` and sets GitHub repository secrets automatically.
+
+### Step 5: Post-Terraform Secrets (After First Deploy)
+```powershell
+cd terraform/environments/dev
+..\..\..\scripts\github-secrets-post-terraform.ps1
+```
+Sets ACR_NAME, RESOURCE_GROUP_NAME, CONTAINER_APP_NAME from Terraform outputs.
+
+---
+
+## 🔐 GitHub Secrets Reference
+
+| Secret | Source | Used By |
+|--------|--------|---------|
+| `AZURE_CLIENT_ID` | Service Principal | Terraform CD, App CD |
+| `AZURE_CLIENT_SECRET` | Service Principal | Terraform CD, App CD |
+| `AZURE_SUBSCRIPTION_ID` | Service Principal | Terraform CD, App CD |
+| `AZURE_TENANT_ID` | Service Principal | Terraform CD, App CD |
+| `ACR_NAME` | Terraform output | App CD |
+| `RESOURCE_GROUP_NAME` | Terraform output | App CD |
+| `CONTAINER_APP_NAME` | Terraform output | App CD |
+
+---
+
+## ⚠️ Security Notes
+
+- **Never commit** `scripts/.azure-secrets.json` (already in `.gitignore`)
+- Service Principal has **Contributor** role on subscription
+- Rotate credentials periodically
+- Consider using **OIDC/Federated Credentials** for production
