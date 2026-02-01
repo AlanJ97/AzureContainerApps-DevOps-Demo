@@ -1,0 +1,311 @@
+# =============================================================================
+# Terraform CI - Infrastructure Validation & Planning
+# =============================================================================
+# Triggers: Pull Requests when terraform/** files change
+# Purpose: Validate IaC, run security scans, generate plan, post to PR
+# =============================================================================
+
+name: "Terraform CI"
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform-*.yaml'
+  workflow_dispatch:
+
+# Cancel in-progress runs for the same PR
+concurrency:
+  group: terraform-ci-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  TERRAFORM_VERSION: '1.7.0'
+  TF_IN_AUTOMATION: 'true'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # ===========================================================================
+  # Determine which environment(s) changed
+  # ===========================================================================
+  changes:
+    name: 🔍 Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      environments: ${{ steps.filter.outputs.changes }}
+      module: ${{ steps.filter.outputs.module }}
+    steps:
+      - uses: actions/checkout@v5
+      
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            module:
+              - 'terraform/modules/**'
+            dev:
+              - 'terraform/environments/dev/**'
+            prod:
+              - 'terraform/environments/prod/**'
+
+  # ===========================================================================
+  # Format Check (runs once for all TF files)
+  # ===========================================================================
+  format:
+    name: 📝 Terraform Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive -diff terraform/
+        continue-on-error: true
+      
+      - name: Post Format Result to PR
+        if: github.event_name == 'pull_request' && steps.fmt.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `### ⚠️ Terraform Format Check Failed
+              
+              Some Terraform files are not properly formatted.
+              
+              Run \`terraform fmt -recursive terraform/\` to fix formatting issues.`
+            });
+
+  # ===========================================================================
+  # Security Scan with Checkov
+  # ===========================================================================
+  security:
+    name: 🔒 Security Scan (Checkov)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform/
+          framework: terraform
+          output_format: cli,sarif
+          output_file_path: console,checkov-results.sarif
+          soft_fail: true
+      
+      - name: Upload Checkov Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkov-results
+          path: checkov-results.sarif
+          retention-days: 30
+
+  # ===========================================================================
+  # Validate Module
+  # ===========================================================================
+  validate-module:
+    name: ✅ Validate Module
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: needs.changes.outputs.module == 'true' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v5
+      
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      
+      - name: Terraform Init
+        working-directory: terraform/modules/aca-stack
+        run: terraform init -backend=false
+      
+      - name: Terraform Validate
+        working-directory: terraform/modules/aca-stack
+        run: terraform validate
+
+  # ===========================================================================
+  # Plan for Dev Environment
+  # ===========================================================================
+  plan-dev:
+    name: 📋 Plan (Dev)
+    runs-on: ubuntu-latest
+    needs: [changes, format, validate-module]
+    if: |
+      always() &&
+      (needs.changes.outputs.module == 'true' || contains(needs.changes.outputs.environments, 'dev') || github.event_name == 'workflow_dispatch') &&
+      needs.format.result != 'failure'
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+    
+    steps:
+      - uses: actions/checkout@v5
+      
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      
+      - name: Terraform Init
+        working-directory: terraform/environments/dev
+        run: terraform init
+      
+      - name: Terraform Validate
+        working-directory: terraform/environments/dev
+        run: terraform validate
+      
+      - name: Terraform Plan
+        id: plan
+        working-directory: terraform/environments/dev
+        run: |
+          terraform plan -no-color -input=false -out=tfplan 2>&1 | tee plan_output.txt
+          echo "plan_output<<EOF" >> $GITHUB_OUTPUT
+          cat plan_output.txt | head -100 >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        continue-on-error: true
+      
+      - name: Post Plan to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `### 📋 Terraform Plan - Dev Environment
+            
+            **Result:** \`${{ steps.plan.outcome }}\`
+            
+            <details><summary>Show Plan Output</summary>
+            
+            \`\`\`hcl
+            ${{ steps.plan.outputs.plan_output }}
+            \`\`\`
+            
+            </details>
+            
+            *Triggered by: @${{ github.actor }} on \`${{ github.event_name }}\`*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+      
+      - name: Upload Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-dev
+          path: terraform/environments/dev/tfplan
+          retention-days: 5
+
+  # ===========================================================================
+  # Plan for Prod Environment
+  # ===========================================================================
+  plan-prod:
+    name: 📋 Plan (Prod)
+    runs-on: ubuntu-latest
+    needs: [changes, format, validate-module]
+    if: |
+      always() &&
+      (needs.changes.outputs.module == 'true' || contains(needs.changes.outputs.environments, 'prod')) &&
+      needs.format.result != 'failure'
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+    
+    steps:
+      - uses: actions/checkout@v5
+      
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      
+      - name: Terraform Init
+        working-directory: terraform/environments/prod
+        run: terraform init
+      
+      - name: Terraform Validate
+        working-directory: terraform/environments/prod
+        run: terraform validate
+      
+      - name: Terraform Plan
+        id: plan
+        working-directory: terraform/environments/prod
+        run: |
+          terraform plan -no-color -input=false -out=tfplan 2>&1 | tee plan_output.txt
+          echo "plan_output<<EOF" >> $GITHUB_OUTPUT
+          cat plan_output.txt | head -100 >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        continue-on-error: true
+      
+      - name: Post Plan to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `### 📋 Terraform Plan - Prod Environment
+            
+            **Result:** \`${{ steps.plan.outcome }}\`
+            
+            ⚠️ **Production changes require careful review!**
+            
+            <details><summary>Show Plan Output</summary>
+            
+            \`\`\`hcl
+            ${{ steps.plan.outputs.plan_output }}
+            \`\`\`
+            
+            </details>
+            
+            *Triggered by: @${{ github.actor }} on \`${{ github.event_name }}\`*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+      
+      - name: Upload Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-prod
+          path: terraform/environments/prod/tfplan
+          retention-days: 5
+
+  # ===========================================================================
+  # Summary
+  # ===========================================================================
+  summary:
+    name: 📊 CI Summary
+    runs-on: ubuntu-latest
+    needs: [format, security, validate-module, plan-dev, plan-prod]
+    if: always()
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "## 🏗️ Terraform CI Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 📝 Format | ${{ needs.format.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔒 Security | ${{ needs.security.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ✅ Module Validation | ${{ needs.validate-module.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📋 Plan (Dev) | ${{ needs.plan-dev.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📋 Plan (Prod) | ${{ needs.plan-prod.result }} |" >> $GITHUB_STEP_SUMMARY

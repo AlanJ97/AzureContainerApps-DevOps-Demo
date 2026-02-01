@@ -1,0 +1,345 @@
+# =============================================================================
+# Application CD - Build, Push, and Deploy
+# =============================================================================
+# Triggers: Push to dev/main when app/** files change
+# Purpose: Build Docker image, push to ACR, deploy to Azure Container Apps
+# =============================================================================
+
+name: "App CD"
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+    paths:
+      - 'app/**'
+      - 'requirements*.txt'
+      - 'pyproject.toml'
+      - 'Dockerfile'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+
+# Only one app deployment at a time per environment
+concurrency:
+  group: app-cd-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: fastapi-demo
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  # ===========================================================================
+  # Setup & Environment Detection
+  # ===========================================================================
+  setup:
+    name: 🔧 Setup
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+    steps:
+      - name: Determine Environment
+        id: env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ENV="${{ inputs.environment }}"
+          elif [[ "${{ github.ref_name }}" == "main" ]]; then
+            ENV="prod"
+          else
+            ENV="dev"
+          fi
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+      
+      - name: Generate Image Metadata
+        id: meta
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "image_tag=${{ github.ref_name }}-$SHORT_SHA" >> $GITHUB_OUTPUT
+
+  # ===========================================================================
+  # Build & Push Docker Image
+  # ===========================================================================
+  build:
+    name: 🐳 Build & Push
+    runs-on: ubuntu-latest
+    needs: setup
+    environment: ${{ needs.setup.outputs.environment }}
+    outputs:
+      image_digest: ${{ steps.push.outputs.digest }}
+      full_image_name: ${{ steps.push.outputs.full_image_name }}
+    
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: |
+            {
+              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
+              "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
+            }
+      
+      - name: Get ACR Credentials
+        id: acr
+        run: |
+          ACR_NAME="${{ secrets.ACR_NAME }}"
+          ACR_LOGIN_SERVER="${ACR_NAME}.azurecr.io"
+          
+          # Get ACR credentials
+          ACR_PASSWORD=$(az acr credential show --name $ACR_NAME --query "passwords[0].value" -o tsv)
+          
+          echo "::add-mask::$ACR_PASSWORD"
+          echo "login_server=$ACR_LOGIN_SERVER" >> $GITHUB_OUTPUT
+          echo "username=$ACR_NAME" >> $GITHUB_OUTPUT
+          echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
+      
+      - name: Login to ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ steps.acr.outputs.login_server }}
+          username: ${{ steps.acr.outputs.username }}
+          password: ${{ steps.acr.outputs.password }}
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Docker Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.acr.outputs.login_server }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=${{ needs.setup.outputs.image_tag }}
+            type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
+      
+      - name: Build and Push
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            GIT_COMMIT=${{ github.sha }}
+            VERSION=${{ needs.setup.outputs.image_tag }}
+      
+      - name: Output Image Info
+        id: image
+        run: |
+          FULL_IMAGE="${{ steps.acr.outputs.login_server }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.image_tag }}"
+          echo "full_image_name=$FULL_IMAGE" >> $GITHUB_OUTPUT
+          echo "## 🐳 Docker Image Built" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`$FULL_IMAGE\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Digest:** \`${{ steps.push.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Container Security Scan
+  # ===========================================================================
+  scan:
+    name: 🔐 Security Scan
+    runs-on: ubuntu-latest
+    needs: [setup, build]
+    environment: ${{ needs.setup.outputs.environment }}
+    
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: |
+            {
+              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
+              "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
+            }
+      
+      - name: ACR Login
+        run: az acr login --name ${{ secrets.ACR_NAME }}
+      
+      - name: Run Trivy Vulnerability Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ needs.build.outputs.full_image_name }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+        continue-on-error: true
+      
+      - name: Upload Trivy Results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy
+        continue-on-error: true
+      
+      - name: Trivy Summary
+        run: |
+          echo "## 🔐 Container Security Scan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Trivy scan completed. Check Security tab for detailed results." >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Deploy to Azure Container Apps
+  # ===========================================================================
+  deploy:
+    name: 🚀 Deploy to ACA
+    runs-on: ubuntu-latest
+    needs: [setup, build, scan]
+    environment: ${{ needs.setup.outputs.environment }}
+    outputs:
+      app_url: ${{ steps.deploy.outputs.app_url }}
+    
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: |
+            {
+              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
+              "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
+            }
+      
+      - name: Deploy to Container Apps
+        id: deploy
+        run: |
+          ENV="${{ needs.setup.outputs.environment }}"
+          RG="${{ secrets.RESOURCE_GROUP_NAME }}"
+          APP_NAME="${{ secrets.CONTAINER_APP_NAME }}"
+          IMAGE="${{ needs.build.outputs.full_image_name }}"
+          
+          echo "📦 Deploying $IMAGE to $APP_NAME..."
+          
+          # Update the container app with the new image
+          az containerapp update \
+            --name $APP_NAME \
+            --resource-group $RG \
+            --image $IMAGE \
+            --set-env-vars \
+              "ENVIRONMENT=$ENV" \
+              "GIT_COMMIT=${{ github.sha }}" \
+              "DEPLOY_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          
+          # Get the app URL
+          APP_URL=$(az containerapp show \
+            --name $APP_NAME \
+            --resource-group $RG \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+          
+          echo "app_url=https://$APP_URL" >> $GITHUB_OUTPUT
+          echo "✅ Deployed to: https://$APP_URL"
+      
+      - name: Deployment Summary
+        run: |
+          echo "## 🚀 Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | ${{ needs.setup.outputs.environment }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | ${{ needs.build.outputs.full_image_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| URL | ${{ steps.deploy.outputs.app_url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Post-Deployment Health Check
+  # ===========================================================================
+  health-check:
+    name: ❤️ Health Check
+    runs-on: ubuntu-latest
+    needs: [setup, deploy]
+    
+    steps:
+      - name: Wait for Deployment
+        run: sleep 30
+      
+      - name: Health Check
+        id: health
+        run: |
+          APP_URL="${{ needs.deploy.outputs.app_url }}"
+          MAX_RETRIES=5
+          RETRY_DELAY=10
+          
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "🏥 Health check attempt $i of $MAX_RETRIES..."
+            
+            HTTP_STATUS=$(curl -s -o response.json -w "%{http_code}" "$APP_URL/health" || echo "000")
+            
+            if [ "$HTTP_STATUS" == "200" ]; then
+              echo "✅ Health check passed!"
+              cat response.json | jq .
+              echo "status=healthy" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            
+            echo "⚠️ Got HTTP $HTTP_STATUS, retrying in $RETRY_DELAY seconds..."
+            sleep $RETRY_DELAY
+          done
+          
+          echo "❌ Health check failed after $MAX_RETRIES attempts"
+          echo "status=unhealthy" >> $GITHUB_OUTPUT
+          exit 1
+      
+      - name: Health Check Summary
+        if: always()
+        run: |
+          echo "## ❤️ Health Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.health.outputs.status }}" == "healthy" ]; then
+            echo "✅ Application is healthy and responding" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Application health check failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ===========================================================================
+  # Notification
+  # ===========================================================================
+  notify:
+    name: 📢 Notify
+    runs-on: ubuntu-latest
+    needs: [setup, build, deploy, health-check]
+    if: always()
+    
+    steps:
+      - name: Create Deployment Summary
+        run: |
+          echo "## 📋 Deployment Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deploy | ${{ needs.deploy.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Health Check | ${{ needs.health-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ needs.setup.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
