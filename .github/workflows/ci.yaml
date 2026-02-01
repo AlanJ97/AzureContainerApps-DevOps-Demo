@@ -1,0 +1,300 @@
+# =============================================================================
+# CI Workflow - Continuous Integration Pipeline
+# =============================================================================
+# Triggers on Pull Requests to dev and main branches.
+# Runs: Linting, Security Scanning, Unit Tests, and IaC Validation.
+# =============================================================================
+
+name: CI Pipeline
+
+run-name: "CI: ${{ github.event.pull_request.title || github.ref_name }}"
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - '.gitignore'
+  # Allow manual trigger for testing
+  workflow_dispatch:
+
+# Cancel in-progress runs for the same PR
+concurrency:
+  group: ci-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+  TERRAFORM_VERSION: '1.7.0'
+
+jobs:
+  # ===========================================================================
+  # Job 1: Python Linting with Flake8
+  # ===========================================================================
+  lint-python:
+    name: 🐍 Lint Python
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install flake8
+        run: pip install flake8
+      
+      - name: Run flake8 linter
+        run: |
+          echo "🔍 Running flake8 linter on Python code..."
+          flake8 app/ tests/ \
+            --count \
+            --select=E9,F63,F7,F82 \
+            --show-source \
+            --statistics
+          
+          # Full lint with warnings (non-blocking)
+          flake8 app/ tests/ \
+            --count \
+            --exit-zero \
+            --max-complexity=10 \
+            --max-line-length=120 \
+            --statistics
+
+  # ===========================================================================
+  # Job 2: Terraform Format & Validate
+  # ===========================================================================
+  lint-terraform:
+    name: 🏗️ Lint Terraform
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      
+      - name: Set up Terraform ${{ env.TERRAFORM_VERSION }}
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      
+      - name: Terraform Format Check
+        id: fmt
+        run: |
+          echo "🔍 Checking Terraform formatting..."
+          terraform fmt -check -recursive terraform/
+        continue-on-error: true
+      
+      - name: Terraform Init (Module)
+        working-directory: terraform/modules/aca-stack
+        run: terraform init -backend=false
+      
+      - name: Terraform Validate (Module)
+        working-directory: terraform/modules/aca-stack
+        run: |
+          echo "✅ Validating Terraform module..."
+          terraform validate
+      
+      - name: Terraform Init (Dev)
+        working-directory: terraform/environments/dev
+        run: terraform init -backend=false
+      
+      - name: Terraform Validate (Dev)
+        working-directory: terraform/environments/dev
+        run: |
+          echo "✅ Validating dev environment..."
+          terraform validate
+
+  # ===========================================================================
+  # Job 3: Security Scan - Python (Bandit SAST)
+  # ===========================================================================
+  security-python:
+    name: 🔒 Security Scan (Python)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Bandit
+        run: pip install bandit
+      
+      - name: Run Bandit SAST Scanner
+        run: |
+          echo "🔒 Running Bandit security analysis..."
+          bandit -r app/ -f json -o bandit-report.json || true
+          bandit -r app/ -ll -ii
+        continue-on-error: true
+      
+      - name: Upload Bandit Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-security-report
+          path: bandit-report.json
+          retention-days: 30
+
+  # ===========================================================================
+  # Job 4: Security Scan - IaC (Checkov)
+  # ===========================================================================
+  security-iac:
+    name: 🔒 Security Scan (IaC)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Checkov
+        run: pip install checkov
+      
+      - name: Run Checkov IaC Scanner
+        run: |
+          echo "🔒 Running Checkov IaC security scan..."
+          checkov -d terraform/ \
+            --framework terraform \
+            --output cli \
+            --output json \
+            --output-file-path . \
+            --soft-fail
+      
+      - name: Upload Checkov Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkov-iac-report
+          path: results_json.json
+          retention-days: 30
+
+  # ===========================================================================
+  # Job 5: Unit Tests with Pytest
+  # ===========================================================================
+  test-python:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-latest
+    needs: [lint-python]  # Run tests only after linting passes
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio httpx
+      
+      - name: Run pytest with coverage
+        run: |
+          echo "🧪 Running unit tests with coverage..."
+          pytest tests/ \
+            --cov=app \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-report=term-missing \
+            --junitxml=junit-report.xml \
+            -v
+      
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            junit-report.xml
+            coverage.xml
+            htmlcov/
+          retention-days: 30
+      
+      - name: Coverage Summary
+        if: always()
+        run: |
+          echo "## 📊 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Coverage report has been generated." >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Job 6: Dockerfile Lint (Hadolint)
+  # ===========================================================================
+  lint-dockerfile:
+    name: 🐳 Lint Dockerfile
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      
+      - name: Run Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: warning
+      
+      - name: Dockerfile Lint Summary
+        if: always()
+        run: |
+          echo "## 🐳 Dockerfile Lint" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Hadolint analysis completed." >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Job 7: CI Summary
+  # ===========================================================================
+  ci-summary:
+    name: 📋 CI Summary
+    runs-on: ubuntu-latest
+    needs: 
+      - lint-python
+      - lint-terraform
+      - security-python
+      - security-iac
+      - test-python
+      - lint-dockerfile
+    if: always()
+    
+    steps:
+      - name: Check job statuses
+        run: |
+          echo "## 📋 CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐍 Lint Python | ${{ needs.lint-python.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏗️ Lint Terraform | ${{ needs.lint-terraform.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔒 Security (Python) | ${{ needs.security-python.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔒 Security (IaC) | ${{ needs.security-iac.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🧪 Unit Tests | ${{ needs.test-python.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐳 Lint Dockerfile | ${{ needs.lint-dockerfile.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Fail if any required job failed
+          if [[ "${{ needs.lint-python.result }}" == "failure" ]] || \
+             [[ "${{ needs.lint-terraform.result }}" == "failure" ]] || \
+             [[ "${{ needs.test-python.result }}" == "failure" ]]; then
+            echo "❌ **CI Failed** - Please check the failed jobs above." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ **CI Passed** - All critical checks succeeded!" >> $GITHUB_STEP_SUMMARY
+          fi
