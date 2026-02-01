@@ -132,12 +132,54 @@
 
 ## 🔄 GitHub Actions & CI/CD
 
+### Core Documentation
+
 | Topic | Link |
 |-------|------|
-| GitHub Actions Docs | https://docs.github.com/en/actions |
-| Azure Login Action | https://github.com/Azure/login |
+| **GitHub Actions Overview** | https://docs.github.com/en/actions |
+| **Understanding GitHub Actions** | https://docs.github.com/en/actions/learn-github-actions/understanding-github-actions |
+| **Workflow Syntax Reference** | https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions |
+| Creating Example Workflow | https://docs.github.com/en/actions/tutorials/create-an-example-workflow |
+| Choosing What Workflows Do | https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do |
+| Choose When Workflows Run | https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run |
+| Choose Where Workflows Run | https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run |
+| Use Workflow Templates | https://docs.github.com/en/actions/how-tos/write-workflows/use-workflow-templates |
+
+### Python CI/CD
+
+| Topic | Link |
+|-------|------|
+| **Building and Testing Python** | https://docs.github.com/en/actions/tutorials/build-and-test-code/python |
+| Setup Python Action | https://github.com/actions/setup-python |
+| Checkout Action | https://github.com/actions/checkout |
+| Upload Artifact Action | https://github.com/actions/upload-artifact |
+
+### Docker & Container Registry
+
+| Topic | Link |
+|-------|------|
+| **Publishing Docker Images** | https://docs.github.com/en/actions/publishing-packages/publishing-docker-images |
+| Docker Login Action | https://github.com/docker/login-action |
 | Docker Build/Push Action | https://github.com/docker/build-push-action |
+| Docker Metadata Action | https://github.com/docker/metadata-action |
+
+### Azure Integration
+
+| Topic | Link |
+|-------|------|
+| Azure Login Action | https://github.com/Azure/login |
+| Azure Container Apps Deploy | https://github.com/Azure/container-apps-deploy-action |
 | Terraform Setup Action | https://github.com/hashicorp/setup-terraform |
+| Azure CLI Action | https://github.com/Azure/cli |
+
+### Security & Best Practices
+
+| Topic | Link |
+|-------|------|
+| Using Secrets | https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets |
+| GITHUB_TOKEN Authentication | https://docs.github.com/en/actions/security-guides/automatic-token-authentication |
+| Secure Use Reference | https://docs.github.com/en/actions/reference/secure-use-reference |
+| Starter Workflows Repository | https://github.com/actions/starter-workflows |
 
 ---
 
