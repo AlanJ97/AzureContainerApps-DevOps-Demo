@@ -81,7 +81,9 @@ jobs:
     environment: ${{ needs.setup.outputs.environment }}
     outputs:
       image_digest: ${{ steps.push.outputs.digest }}
-      full_image_name: ${{ steps.image.outputs.full_image_name }}
+      # Note: We don't pass full_image_name as output because GitHub Actions
+      # blocks outputs containing secrets (ACR_NAME). Instead, we construct
+      # the image name in the deploy job using the image_tag from setup.
     
     steps:
       - uses: actions/checkout@v5
@@ -176,7 +178,8 @@ jobs:
       - name: Run Trivy Vulnerability Scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ needs.build.outputs.full_image_name }}
+          # Construct image name here (GitHub blocks outputs containing secrets)
+          image-ref: ${{ secrets.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.image_tag }}
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -227,7 +230,8 @@ jobs:
           ENV="${{ needs.setup.outputs.environment }}"
           RG="${{ secrets.RESOURCE_GROUP_NAME }}"
           APP_NAME="${{ secrets.CONTAINER_APP_NAME }}"
-          IMAGE="${{ needs.build.outputs.full_image_name }}"
+          # Construct image name here instead of passing as output (GitHub blocks outputs containing secrets)
+          IMAGE="${{ secrets.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.image_tag }}"
           
           echo "📦 Deploying $IMAGE to $APP_NAME..."
           
