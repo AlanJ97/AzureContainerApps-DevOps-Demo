@@ -74,7 +74,7 @@ jobs:
       
       - name: Post Format Result to PR
         if: github.event_name == 'pull_request' && steps.fmt.outcome == 'failure'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             github.rest.issues.createComment({
@@ -181,7 +181,7 @@ jobs:
       
       - name: Post Plan to PR
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const output = `### 📋 Terraform Plan - Dev Environment
@@ -256,7 +256,7 @@ jobs:
       
       - name: Post Plan to PR
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const output = `### 📋 Terraform Plan - Prod Environment
