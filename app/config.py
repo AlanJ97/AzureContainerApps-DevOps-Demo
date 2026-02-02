@@ -2,7 +2,6 @@
 Application configuration using environment variables.
 Follows 12-Factor App methodology: configuration from environment.
 """
-import os
 from functools import lru_cache
 from pydantic_settings import BaseSettings
 

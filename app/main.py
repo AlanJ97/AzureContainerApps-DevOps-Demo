@@ -18,7 +18,7 @@ from typing import Annotated
 from fastapi import FastAPI, Path, Query, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import get_settings, Settings
+from app.config import get_settings
 from app.models import (
     HealthResponse,
     InfoResponse,

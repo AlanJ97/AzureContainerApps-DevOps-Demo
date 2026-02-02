@@ -4,7 +4,7 @@ Tests for the FastAPI application endpoints.
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app, items_db, item_id_counter
+from app.main import app, items_db
 
 
 @pytest.fixture(autouse=True)
