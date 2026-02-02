@@ -266,10 +266,10 @@ jobs:
           echo "| Commit | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
 
   # ===========================================================================
-  # Post-Deployment Health Check
+  # Post-Deployment Smoke Tests
   # ===========================================================================
-  health-check:
-    name: ❤️ Health Check
+  smoke-test:
+    name: 💨 Post-Deploy Smoke Test
     runs-on: ubuntu-latest
     needs: [setup, deploy]
     environment: ${{ needs.setup.outputs.environment }}
@@ -289,10 +289,10 @@ jobs:
               "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
             }
       
-      - name: Health Check
-        id: health
+      - name: Run Smoke Tests
+        id: smoke
         run: |
-          # Get the app URL directly from Azure (outputs containing secrets get masked)
+          # Get the app URL directly from Azure
           APP_URL=$(az containerapp show \
             --name ${{ secrets.CONTAINER_APP_NAME }} \
             --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} \
@@ -300,40 +300,131 @@ jobs:
           APP_URL="https://$APP_URL"
           
           echo "🔗 App URL: $APP_URL"
+          echo "app_url=$APP_URL" >> $GITHUB_OUTPUT
           
           MAX_RETRIES=5
           RETRY_DELAY=10
+          SMOKE_PASSED=0
+          SMOKE_FAILED=0
           
-          for i in $(seq 1 $MAX_RETRIES); do
-            echo "🏥 Health check attempt $i of $MAX_RETRIES..."
+          # Function to test an endpoint
+          test_endpoint() {
+            local endpoint=$1
+            local expected_field=$2
+            local description=$3
             
-            HTTP_STATUS=$(curl -s -o response.json -w "%{http_code}" "$APP_URL/health" || echo "000")
+            echo "🧪 Testing: $description"
             
-            if [ "$HTTP_STATUS" == "200" ]; then
-              echo "✅ Health check passed!"
-              cat response.json | jq .
-              echo "status=healthy" >> $GITHUB_OUTPUT
-              exit 0
-            fi
+            for i in $(seq 1 $MAX_RETRIES); do
+              HTTP_STATUS=$(curl -s -o response.json -w "%{http_code}" "$APP_URL$endpoint" || echo "000")
+              
+              if [ "$HTTP_STATUS" == "200" ]; then
+                # Validate response structure if expected_field is provided
+                if [ -n "$expected_field" ]; then
+                  if jq -e ".$expected_field" response.json > /dev/null 2>&1; then
+                    echo "  ✅ $description - HTTP 200, response valid"
+                    return 0
+                  else
+                    echo "  ⚠️ $description - HTTP 200 but missing '$expected_field' field"
+                  fi
+                else
+                  echo "  ✅ $description - HTTP 200"
+                  return 0
+                fi
+              fi
+              
+              if [ $i -lt $MAX_RETRIES ]; then
+                echo "  ⏳ Attempt $i failed (HTTP $HTTP_STATUS), retrying..."
+                sleep $RETRY_DELAY
+              fi
+            done
             
-            echo "⚠️ Got HTTP $HTTP_STATUS, retrying in $RETRY_DELAY seconds..."
-            sleep $RETRY_DELAY
-          done
+            echo "  ❌ $description - FAILED (HTTP $HTTP_STATUS)"
+            return 1
+          }
           
-          echo "❌ Health check failed after $MAX_RETRIES attempts"
-          echo "status=unhealthy" >> $GITHUB_OUTPUT
-          exit 1
+          echo ""
+          echo "=========================================="
+          echo "🚀 Running Post-Deployment Smoke Tests"
+          echo "=========================================="
+          echo ""
+          
+          # Critical smoke tests
+          if test_endpoint "/" "message" "Root endpoint"; then
+            ((SMOKE_PASSED++))
+          else
+            ((SMOKE_FAILED++))
+          fi
+          
+          if test_endpoint "/health" "status" "Health endpoint"; then
+            ((SMOKE_PASSED++))
+          else
+            ((SMOKE_FAILED++))
+          fi
+          
+          if test_endpoint "/health/ready" "status" "Readiness probe"; then
+            ((SMOKE_PASSED++))
+          else
+            ((SMOKE_FAILED++))
+          fi
+          
+          if test_endpoint "/health/live" "status" "Liveness probe"; then
+            ((SMOKE_PASSED++))
+          else
+            ((SMOKE_FAILED++))
+          fi
+          
+          if test_endpoint "/info" "app_name" "Info endpoint"; then
+            ((SMOKE_PASSED++))
+          else
+            ((SMOKE_FAILED++))
+          fi
+          
+          if test_endpoint "/docs" "" "API Documentation"; then
+            ((SMOKE_PASSED++))
+          else
+            ((SMOKE_FAILED++))
+          fi
+          
+          echo ""
+          echo "=========================================="
+          echo "📊 Smoke Test Results: $SMOKE_PASSED passed, $SMOKE_FAILED failed"
+          echo "=========================================="
+          
+          echo "passed=$SMOKE_PASSED" >> $GITHUB_OUTPUT
+          echo "failed=$SMOKE_FAILED" >> $GITHUB_OUTPUT
+          
+          if [ $SMOKE_FAILED -gt 0 ]; then
+            echo "status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "status=passed" >> $GITHUB_OUTPUT
+            exit 0
+          fi
       
-      - name: Health Check Summary
+      - name: Smoke Test Summary
         if: always()
         run: |
-          echo "## ❤️ Health Check" >> $GITHUB_STEP_SUMMARY
+          echo "## 💨 Post-Deployment Smoke Tests" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.health.outputs.status }}" == "healthy" ]; then
-            echo "✅ Application is healthy and responding" >> $GITHUB_STEP_SUMMARY
+          echo "**App URL:** ${{ steps.smoke.outputs.app_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.smoke.outputs.status }}" == "passed" ]; then
+            echo "✅ All smoke tests passed (${{ steps.smoke.outputs.passed }} tests)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Application health check failed" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Smoke tests failed" >> $GITHUB_STEP_SUMMARY
+            echo "- Passed: ${{ steps.smoke.outputs.passed }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Failed: ${{ steps.smoke.outputs.failed }}" >> $GITHUB_STEP_SUMMARY
           fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Endpoint | Description |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| \`/\` | Root welcome endpoint |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`/health\` | Main health check |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`/health/ready\` | Kubernetes readiness probe |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`/health/live\` | Kubernetes liveness probe |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`/info\` | Application information |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`/docs\` | API documentation |" >> $GITHUB_STEP_SUMMARY
 
   # ===========================================================================
   # Notification
@@ -341,7 +432,7 @@ jobs:
   notify:
     name: 📢 Notify
     runs-on: ubuntu-latest
-    needs: [setup, build, deploy, health-check]
+    needs: [setup, build, deploy, smoke-test]
     if: always()
     
     steps:
@@ -353,7 +444,7 @@ jobs:
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Deploy | ${{ needs.deploy.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Health Check | ${{ needs.health-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Smoke Test | ${{ needs.smoke-test.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Environment:** ${{ needs.setup.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY

@@ -149,10 +149,10 @@ jobs:
           fi >> $GITHUB_STEP_SUMMARY
 
   # ===========================================================================
-  # Unit Tests
+  # Smoke Tests (Fast Pre-deployment Sanity Check)
   # ===========================================================================
-  test:
-    name: 🧪 Test
+  smoke-test:
+    name: 💨 Smoke Test
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.app == 'true' || needs.changes.outputs.tests == 'true'
@@ -169,7 +169,38 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-asyncio httpx
+          pip install pytest pytest-smoke pytest-asyncio httpx
+      
+      - name: Run Smoke Tests
+        run: |
+          echo "## 💨 Smoke Test Results" >> $GITHUB_STEP_SUMMARY
+          pytest --smoke -v --tb=short 2>&1 | tee smoke-output.txt
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -20 smoke-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Unit Tests
+  # ===========================================================================
+  test:
+    name: 🧪 Test
+    runs-on: ubuntu-latest
+    needs: [changes, smoke-test]
+    if: needs.changes.outputs.app == 'true' || needs.changes.outputs.tests == 'true'
+    
+    steps:
+      - uses: actions/checkout@v5
+      
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-smoke pytest-asyncio httpx
       
       - name: Run Tests with Coverage
         run: |

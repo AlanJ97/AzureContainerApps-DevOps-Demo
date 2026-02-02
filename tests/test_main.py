@@ -11,6 +11,7 @@ import pytest
 class TestHealthEndpoints:
     """Tests for health check endpoints."""
     
+    @pytest.mark.smoke
     def test_health_check(self, client):
         """Test the main health endpoint."""
         response = client.get("/health")
@@ -19,6 +20,7 @@ class TestHealthEndpoints:
         assert data["status"] == "healthy"
         assert "timestamp" in data
     
+    @pytest.mark.smoke
     def test_readiness_check(self, client):
         """Test the readiness probe endpoint."""
         response = client.get("/health/ready")
@@ -26,6 +28,7 @@ class TestHealthEndpoints:
         data = response.json()
         assert data["status"] == "ready"
     
+    @pytest.mark.smoke
     def test_liveness_check(self, client):
         """Test the liveness probe endpoint."""
         response = client.get("/health/live")
@@ -38,6 +41,7 @@ class TestHealthEndpoints:
 class TestInfoEndpoint:
     """Tests for the info endpoint."""
     
+    @pytest.mark.smoke
     def test_get_info(self, client):
         """Test the application info endpoint."""
         response = client.get("/info")
@@ -53,6 +57,7 @@ class TestInfoEndpoint:
 class TestRootEndpoint:
     """Tests for the root endpoint."""
     
+    @pytest.mark.smoke
     def test_root(self, client):
         """Test the root welcome endpoint."""
         response = client.get("/")
@@ -67,6 +72,7 @@ class TestRootEndpoint:
 class TestItemsEndpoints:
     """Tests for the items CRUD endpoints."""
     
+    @pytest.mark.smoke
     def test_create_item(self, client):
         """Test creating a new item."""
         item_data = {

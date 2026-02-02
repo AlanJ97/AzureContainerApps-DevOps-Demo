@@ -30,6 +30,7 @@ dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=4.1.0",
+    "pytest-smoke>=0.10.0",
     "ruff>=0.1.0",
     "black>=24.1.0",
     "mypy>=1.8.0",
@@ -89,6 +90,15 @@ python_files = ["test_*.py"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 addopts = "-v --tb=short"
+markers = [
+    "unit: Unit tests for individual components",
+    "integration: Integration tests for API workflows",
+    "slow: Tests that take longer to run",
+    "smoke: Critical tests that must pass (pre-deployment sanity check)",
+]
+# pytest-smoke configuration
+smoke_default_level = 1
+smoke_marked_tests_as_critical = true
 
 [tool.coverage.run]
 source = ["app"]
