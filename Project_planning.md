@@ -20,7 +20,7 @@
 | 10 | **IaC** | Configure GitHub Secrets for Azure authentication | ✅ |
 | 11 | **IaC** | Terraform CI passing (fmt, validate, plan) | ✅ |
 | 12 | **Deploy** | Run Terraform CD to deploy infrastructure (dev) | ✅ |
-| 13 | **Deploy** | Run Terraform CD to deploy infrastructure (prod) | ⬜ |
+| 13 | **Deploy** | Run Terraform CD to deploy infrastructure (prod) | ✅ |
 | 14 | **Deploy** | Run App CD to build/push/deploy container (dev) | ✅ |
 | 15 | **HA** | Configure min_replicas=2, health probes | ✅ (in tfvars) |
 | 16 | **Observability** | Configure Log Analytics + App Insights | ✅ (in module) |

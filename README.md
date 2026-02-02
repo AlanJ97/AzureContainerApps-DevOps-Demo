@@ -12,7 +12,7 @@
 | Environment | URL | Status |
 |-------------|-----|--------|
 | **Dev** | [ca-aca-devops-demo-dev.agreeableplant-020e5c41.eastus2.azurecontainerapps.io](https://ca-aca-devops-demo-dev.agreeableplant-020e5c41.eastus2.azurecontainerapps.io) | ✅ Live |
-| **Prod** | Coming soon | ⬜ Pending |
+| **Prod** | [ca-aca-devops-demo-prod.greenbay-ba347684.eastus2.azurecontainerapps.io](https://ca-aca-devops-demo-prod.greenbay-ba347684.eastus2.azurecontainerapps.io) | ✅ Live |
 
 ## 📋 Table of Contents
 
