@@ -117,6 +117,25 @@
 | **Log Analytics Workspace** | https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/log_analytics_workspace |
 | Application Insights | https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/application_insights |
 
+### Key Vault Resources
+
+| Topic | Link |
+|-------|------|
+| **Key Vault** | https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/key_vault |
+| **Key Vault Secret** | https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/key_vault_secret |
+| Key Vault Access Policy | https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/key_vault_access_policy |
+| Key Vault Key | https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/key_vault_key |
+| Quick Create Key Vault (Tutorial) | https://learn.microsoft.com/en-us/azure/key-vault/keys/quick-create-terraform?tabs=azure-cli |
+
+### Managed Identity & Authentication
+
+| Topic | Link |
+|-------|------|
+| **Managed Identity Guide** | https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/guides/managed_service_identity |
+| AzureAD Managed Identity | https://registry.terraform.io/providers/hashicorp/azuread/3.1.0/docs/guides/managed_service_identity |
+| Authenticate with Managed Identity | https://learn.microsoft.com/en-us/azure/developer/terraform/authenticate-to-azure-with-managed-identity-for-azure-services |
+| **ACR Auth with Managed Identity** | https://learn.microsoft.com/en-us/azure/container-registry/container-registry-authentication-managed-identity?tabs=azure-cli |
+
 ---
 
 ## 🏗️ Terraform - Language & Modules
@@ -191,6 +210,33 @@
 | Bandit (Python SAST) | https://bandit.readthedocs.io/ |
 | Checkov (IaC Scanner) | https://www.checkov.io/1.Welcome/Quick%20Start.html |
 | Flake8 (Python Linter) | https://flake8.pycqa.org/ |
+
+---
+
+## 🛡️ GitHub Security Features
+
+### Dependabot (Dependency Scanning)
+
+| Topic | Link |
+|-------|------|
+| **Dependabot Quickstart Guide** | https://docs.github.com/en/code-security/tutorials/secure-your-dependencies/dependabot-quickstart-guide |
+| **Configuring Dependabot Version Updates** | https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuring-dependabot-version-updates |
+| Viewing and Updating Dependabot Alerts | https://docs.github.com/en/code-security/how-tos/manage-security-alerts/manage-dependabot-alerts/viewing-and-updating-dependabot-alerts |
+| Troubleshooting Dependabot Errors | https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/troubleshoot-dependency-security/troubleshooting-dependabot-errors |
+| Troubleshooting Vulnerable Dependencies | https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/troubleshoot-dependency-security/troubleshooting-the-detection-of-vulnerable-dependencies |
+| Configuring Dependabot Alerts (Org) | https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/configuring-dependabot-alerts |
+| Dependabot for Starters (Community) | https://opsatscale.com/getting-started/GitHub-dependabot-for-starters/ |
+
+### CodeQL (Code Security Scanning)
+
+| Topic | Link |
+|-------|------|
+| **About Code Scanning with CodeQL** | https://docs.github.com/en/code-security/concepts/code-scanning/codeql/about-code-scanning-with-codeql |
+| **Configuring Default Setup** | https://docs.github.com/en/code-security/how-tos/scan-code-for-vulnerabilities/configure-code-scanning/configuring-default-setup-for-code-scanning |
+| **Configuring Advanced Setup** | https://docs.github.com/en/code-security/how-tos/scan-code-for-vulnerabilities/configure-code-scanning/configuring-advanced-setup-for-code-scanning |
+| CodeQL Action (GitHub) | https://github.com/github/codeql-action/ |
+| Using Code Scanning with CI | https://docs.github.com/en/code-security/how-tos/scan-code-for-vulnerabilities/integrate-with-existing-tools/using-code-scanning-with-your-existing-ci-system |
+| About Code Scanning Alerts | https://docs.github.com/en/code-security/concepts/code-scanning/about-code-scanning-alerts |
 
 ---
 

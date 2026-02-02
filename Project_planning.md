@@ -33,8 +33,8 @@
 ### 🔒 Security Hardening
 | # | Task | Cost | Status |
 |---|------|------|--------|
-| 18 | **Managed Identity for ACR** (replace SP with system identity) | FREE | ⬜ |
-| 19 | **Azure Key Vault** for secrets (not env vars) | ~$0.03/10k ops | ⬜ |
+| 18 | **Managed Identity for ACR** (replace SP with system identity) | FREE | ✅ (already in module) |
+| 19 | **Azure Key Vault** for secrets (not env vars) | ~$0.03/10k ops | ✅ |
 | 20 | **Dependabot** enabled for dependency scanning | FREE (GitHub) | ✅ |
 | 21 | **CodeQL** security scanning in CI | FREE (public repos) | ✅ |
 | 22 | ~~Private Endpoints for ACR~~ | 💰 EXPENSIVE (~$7/mo) | ❌ Skip |

@@ -87,6 +87,80 @@ resource "azurerm_role_assignment" "acr_pull" {
 }
 
 # =============================================================================
+# Azure Key Vault
+# =============================================================================
+# Secure storage for secrets (connection strings, API keys, etc.)
+# The managed identity is granted access to read secrets
+
+data "azurerm_client_config" "current" {}
+
+resource "azurerm_key_vault" "main" {
+  count = var.enable_key_vault ? 1 : 0
+
+  name                        = "kv-${replace(local.resource_prefix, "-", "")}"
+  location                    = azurerm_resource_group.main.location
+  resource_group_name         = azurerm_resource_group.main.name
+  tenant_id                   = data.azurerm_client_config.current.tenant_id
+  sku_name                    = "standard"
+  soft_delete_retention_days  = 7
+  purge_protection_enabled    = false # Set to true for production
+  enable_rbac_authorization   = false # Using access policies
+
+  # Access policy for Terraform (current client) - to manage secrets
+  access_policy {
+    tenant_id = data.azurerm_client_config.current.tenant_id
+    object_id = data.azurerm_client_config.current.object_id
+
+    secret_permissions = [
+      "Get", "List", "Set", "Delete", "Purge", "Recover"
+    ]
+  }
+
+  # Access policy for Container App Managed Identity - to read secrets
+  access_policy {
+    tenant_id = data.azurerm_client_config.current.tenant_id
+    object_id = azurerm_user_assigned_identity.aca.principal_id
+
+    secret_permissions = [
+      "Get", "List"
+    ]
+  }
+
+  tags = local.tags
+}
+
+# =============================================================================
+# Application Insights (for APM)
+# =============================================================================
+
+resource "azurerm_application_insights" "main" {
+  count = var.enable_key_vault ? 1 : 0
+
+  name                = "appi-${local.resource_prefix}"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  workspace_id        = azurerm_log_analytics_workspace.main.id
+  application_type    = "web"
+
+  tags = local.tags
+}
+
+# =============================================================================
+# Key Vault Secrets
+# =============================================================================
+# Store sensitive values in Key Vault instead of environment variables
+
+resource "azurerm_key_vault_secret" "appinsights_connection_string" {
+  count = var.enable_key_vault ? 1 : 0
+
+  name         = "appinsights-connection-string"
+  value        = azurerm_application_insights.main[0].connection_string
+  key_vault_id = azurerm_key_vault.main[0].id
+
+  depends_on = [azurerm_key_vault.main]
+}
+
+# =============================================================================
 # Container App Environment
 # =============================================================================
 # Note: Zone redundancy requires infrastructure_subnet_id
@@ -131,6 +205,16 @@ resource "azurerm_container_app" "main" {
     identity = azurerm_user_assigned_identity.aca.id
   }
 
+  # Secrets from Key Vault (when enabled)
+  dynamic "secret" {
+    for_each = var.enable_key_vault ? [1] : []
+    content {
+      name                = "appinsights-connection-string"
+      key_vault_secret_id = azurerm_key_vault_secret.appinsights_connection_string[0].versionless_id
+      identity            = azurerm_user_assigned_identity.aca.id
+    }
+  }
+
   # Ingress configuration
   ingress {
     external_enabled = true
@@ -165,6 +249,15 @@ resource "azurerm_container_app" "main" {
         content {
           name  = env.value.name
           value = env.value.value
+        }
+      }
+
+      # Secret-backed environment variable (when Key Vault is enabled)
+      dynamic "env" {
+        for_each = var.enable_key_vault ? [1] : []
+        content {
+          name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
+          secret_name = "appinsights-connection-string"
         }
       }
 
@@ -205,6 +298,9 @@ resource "azurerm_container_app" "main" {
     }
   }
 
-  # Ensure ACR role assignment is complete before deploying
-  depends_on = [azurerm_role_assignment.acr_pull]
+  # Ensure dependencies are complete before deploying
+  depends_on = [
+    azurerm_role_assignment.acr_pull,
+    azurerm_key_vault_secret.appinsights_connection_string
+  ]
 }

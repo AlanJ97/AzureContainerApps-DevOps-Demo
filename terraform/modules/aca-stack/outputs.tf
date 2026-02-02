@@ -118,3 +118,43 @@ output "log_analytics_workspace_name" {
   description = "Name of the Log Analytics Workspace"
   value       = azurerm_log_analytics_workspace.main.name
 }
+
+# =============================================================================
+# Key Vault (when enabled)
+# =============================================================================
+
+output "key_vault_id" {
+  description = "ID of the Key Vault"
+  value       = var.enable_key_vault ? azurerm_key_vault.main[0].id : null
+}
+
+output "key_vault_name" {
+  description = "Name of the Key Vault"
+  value       = var.enable_key_vault ? azurerm_key_vault.main[0].name : null
+}
+
+output "key_vault_uri" {
+  description = "URI of the Key Vault"
+  value       = var.enable_key_vault ? azurerm_key_vault.main[0].vault_uri : null
+}
+
+# =============================================================================
+# Application Insights (when enabled)
+# =============================================================================
+
+output "application_insights_id" {
+  description = "ID of Application Insights"
+  value       = var.enable_key_vault ? azurerm_application_insights.main[0].id : null
+}
+
+output "application_insights_connection_string" {
+  description = "Connection string for Application Insights (sensitive)"
+  value       = var.enable_key_vault ? azurerm_application_insights.main[0].connection_string : null
+  sensitive   = true
+}
+
+output "application_insights_instrumentation_key" {
+  description = "Instrumentation key for Application Insights (sensitive)"
+  value       = var.enable_key_vault ? azurerm_application_insights.main[0].instrumentation_key : null
+  sensitive   = true
+}

@@ -78,6 +78,16 @@ variable "log_retention_days" {
 }
 
 # ================================
+# Key Vault Configuration
+# ================================
+
+variable "enable_key_vault" {
+  description = "Enable Azure Key Vault for secure secret storage"
+  type        = bool
+  default     = false
+}
+
+# ================================
 # Container App Configuration
 # ================================
 

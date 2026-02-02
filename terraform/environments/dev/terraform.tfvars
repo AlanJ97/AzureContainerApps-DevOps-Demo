@@ -12,6 +12,9 @@ tags = {
   Owner      = "DevOps-Team"
 }
 
+# Key Vault for secrets (free tier)
+enable_key_vault = true
+
 # Container configuration (update after building your image)
 # container_image = "acrdevopsdev.azurecr.io/aca-devops-demo:latest"
 container_port = 8000
