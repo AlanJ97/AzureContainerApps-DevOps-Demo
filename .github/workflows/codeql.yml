@@ -1,0 +1,50 @@
+# CodeQL Security Analysis Workflow
+# Docs: https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning
+
+name: "CodeQL Security Scan"
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'app/**'
+      - '.github/workflows/codeql.yml'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'app/**'
+      - '.github/workflows/codeql.yml'
+  schedule:
+    # Run every Monday at 9:00 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  analyze:
+    name: Analyze Python Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          # Use extended query suite for more thorough analysis
+          queries: +security-extended,security-and-quality
+
+      # CodeQL autobuild for Python (no compilation needed)
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"

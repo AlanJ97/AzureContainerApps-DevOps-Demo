@@ -28,6 +28,61 @@
 
 ---
 
+## 📋 Phase 2: Enterprise Improvements (Day 2)
+
+### 🔒 Security Hardening
+| # | Task | Cost | Status |
+|---|------|------|--------|
+| 18 | **Managed Identity for ACR** (replace SP with system identity) | FREE | ⬜ |
+| 19 | **Azure Key Vault** for secrets (not env vars) | ~$0.03/10k ops | ⬜ |
+| 20 | **Dependabot** enabled for dependency scanning | FREE (GitHub) | ✅ |
+| 21 | **CodeQL** security scanning in CI | FREE (public repos) | ✅ |
+| 22 | ~~Private Endpoints for ACR~~ | 💰 EXPENSIVE (~$7/mo) | ❌ Skip |
+
+### 🧪 Testing & Quality Gates
+| # | Task | Cost | Status |
+|---|------|------|--------|
+| 23 | **Code coverage** threshold (80%) in CI | FREE | ⬜ |
+| 24 | **Integration tests** with pytest | FREE | ⬜ |
+| 25 | **Smoke tests** post-deployment | FREE | ⬜ |
+| 26 | ~~SonarQube/SonarCloud~~ | 💰 PAID for private | ⬜ Optional |
+
+### 🚀 Deployment Strategy
+| # | Task | Cost | Status |
+|---|------|------|--------|
+| 27 | **Manual approval gate** for prod | FREE (GitHub Environments) | ⬜ |
+| 28 | **Blue-green deployment** with traffic splitting | FREE | ⬜ |
+| 29 | **Automated rollback** on health check failure | FREE | ⬜ |
+
+### 📊 Observability
+| # | Task | Cost | Status |
+|---|------|------|--------|
+| 30 | **Application Insights** APM (already in module) | FREE tier (5GB/mo) | ⬜ Enhance |
+| 31 | **Custom Azure Dashboard** | FREE | ⬜ |
+| 32 | **Alerting rules** (email on errors) | FREE | ⬜ |
+| 33 | ~~Grafana Cloud~~ | 💰 PAID | ❌ Skip |
+| 34 | ~~PagerDuty/OpsGenie~~ | 💰 PAID | ❌ Skip |
+
+### 📚 Documentation & Governance
+| # | Task | Cost | Status |
+|---|------|------|--------|
+| 35 | **ADRs** (Architecture Decision Records) | FREE | ⬜ |
+| 36 | **Runbook** for incident response | FREE | ⬜ |
+| 37 | **Cost tags** on all resources | FREE | ⬜ |
+
+### 💰 Cost Summary
+| Item | Monthly Cost |
+|------|--------------|
+| Container Apps (Consumption) | ~$0 (free tier: 2M requests) |
+| ACR Basic | ~$5/mo |
+| Log Analytics | ~$0 (free 5GB/mo) |
+| Key Vault | ~$0.03/10k operations |
+| **Total (Demo)** | **~$5-10/mo** |
+
+> ⚠️ **Tip:** Delete resources when not demoing to save costs!
+
+---
+
 ## 🏗️ Architecture Summary
 
 ```
@@ -407,14 +462,3 @@ resource "azurerm_container_app" "main" {
 ```
 
 ---
-
-## 🚀 Next Steps (In Order)
-
-1. **[ ] Create the Python FastAPI app** (`app/main.py`)
-2. **[ ] Create the Dockerfile** (`docker/Dockerfile`)
-3. **[ ] Create Terraform module** (`terraform/modules/aca_stack/`)
-4. **[ ] Create environment configs** (`terraform/environments/dev/`, `prod/`)
-5. **[ ] Create CI workflow** (`.github/workflows/ci.yaml`)
-6. **[ ] Create CD workflow** (`.github/workflows/cd.yaml`)
-7. **[ ] Initialize GitHub repo and test pipeline**
-8. **[ ] Deploy to Azure and validate observability**
