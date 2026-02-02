@@ -351,39 +351,39 @@ jobs:
           
           # Critical smoke tests
           if test_endpoint "/" "message" "Root endpoint"; then
-            ((SMOKE_PASSED++))
+            SMOKE_PASSED=$((SMOKE_PASSED + 1))
           else
-            ((SMOKE_FAILED++))
+            SMOKE_FAILED=$((SMOKE_FAILED + 1))
           fi
           
           if test_endpoint "/health" "status" "Health endpoint"; then
-            ((SMOKE_PASSED++))
+            SMOKE_PASSED=$((SMOKE_PASSED + 1))
           else
-            ((SMOKE_FAILED++))
+            SMOKE_FAILED=$((SMOKE_FAILED + 1))
           fi
           
           if test_endpoint "/health/ready" "status" "Readiness probe"; then
-            ((SMOKE_PASSED++))
+            SMOKE_PASSED=$((SMOKE_PASSED + 1))
           else
-            ((SMOKE_FAILED++))
+            SMOKE_FAILED=$((SMOKE_FAILED + 1))
           fi
           
           if test_endpoint "/health/live" "status" "Liveness probe"; then
-            ((SMOKE_PASSED++))
+            SMOKE_PASSED=$((SMOKE_PASSED + 1))
           else
-            ((SMOKE_FAILED++))
+            SMOKE_FAILED=$((SMOKE_FAILED + 1))
           fi
           
           if test_endpoint "/info" "app_name" "Info endpoint"; then
-            ((SMOKE_PASSED++))
+            SMOKE_PASSED=$((SMOKE_PASSED + 1))
           else
-            ((SMOKE_FAILED++))
+            SMOKE_FAILED=$((SMOKE_FAILED + 1))
           fi
           
           if test_endpoint "/docs" "" "API Documentation"; then
-            ((SMOKE_PASSED++))
+            SMOKE_PASSED=$((SMOKE_PASSED + 1))
           else
-            ((SMOKE_FAILED++))
+            SMOKE_FAILED=$((SMOKE_FAILED + 1))
           fi
           
           echo ""
