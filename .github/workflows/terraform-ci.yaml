@@ -107,7 +107,7 @@ jobs:
           soft_fail: true
       
       - name: Upload Checkov Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: checkov-results
@@ -206,7 +206,7 @@ jobs:
             });
       
       - name: Upload Plan Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: terraform-plan-dev
           path: terraform/environments/dev/tfplan
@@ -283,7 +283,7 @@ jobs:
             });
       
       - name: Upload Plan Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: terraform-plan-prod
           path: terraform/environments/prod/tfplan
