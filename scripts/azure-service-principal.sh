@@ -1,25 +1,30 @@
 #!/bin/bash
 # =============================================================================
-# Azure Service Principal Setup Script (Bash)
+# Azure Service Principal Setup Script
 # =============================================================================
-# This script creates a Service Principal for GitHub Actions to authenticate
-# with Azure. The credentials are saved to a JSON file for the secrets script.
+# Creates a Service Principal for GitHub Actions with the required roles:
+# - Contributor: To create/manage Azure resources
+# - User Access Administrator: To assign roles (e.g., AcrPull to managed identity)
 #
 # Prerequisites:
-#   - Azure CLI (az) installed and authenticated
-#   - Sufficient permissions to create Service Principals (Azure AD)
+#   - Azure CLI installed and authenticated (az login)
+#   - Sufficient permissions to create Service Principals
 #
 # Usage:
 #   ./scripts/azure-service-principal.sh
+#
+# Output:
+#   - scripts/.azure-secrets.json (contains credentials)
 # =============================================================================
 
 set -e
 
 # =============================================================================
-# Configuration - MODIFY THESE VALUES
+# Configuration
 # =============================================================================
 SP_NAME="sp-github-aca-demo"
-ROLE="Contributor"  # Or "Owner" if you need to assign roles
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SECRETS_FILE="$SCRIPT_DIR/.azure-secrets.json"
 
 # =============================================================================
 # Script Start
@@ -32,97 +37,97 @@ echo ""
 
 # Check if az is installed
 if ! command -v az &> /dev/null; then
-    echo "[ERROR] Azure CLI (az) is not installed. Please install it first."
+    echo "❌ Azure CLI (az) is not installed."
     echo "   https://docs.microsoft.com/en-us/cli/azure/install-azure-cli"
     exit 1
 fi
 
 # Check if logged in
 if ! az account show &> /dev/null; then
-    echo "[ERROR] Not logged in to Azure. Please run: az login"
+    echo "❌ Not logged in to Azure. Run: az login"
     exit 1
 fi
 
 SUBSCRIPTION_ID=$(az account show --query "id" -o tsv)
 TENANT_ID=$(az account show --query "tenantId" -o tsv)
 ACCOUNT_NAME=$(az account show --query "name" -o tsv)
-USER_NAME=$(az account show --query "user.name" -o tsv)
 
-echo "[OK] Logged in as: $USER_NAME"
-echo "[OK] Subscription: $ACCOUNT_NAME"
-echo "[OK] Subscription ID: $SUBSCRIPTION_ID"
+echo "✅ Logged in to: $ACCOUNT_NAME"
+echo "   Subscription: $SUBSCRIPTION_ID"
 echo ""
 
-# Create Service Principal
-echo "[1/2] Creating Service Principal: $SP_NAME"
-echo "      Role: $ROLE"
+# =============================================================================
+# Step 1: Create Service Principal with Contributor role
+# =============================================================================
+echo "[1/3] Creating Service Principal: $SP_NAME"
+echo "      Role: Contributor"
 echo "      Scope: /subscriptions/$SUBSCRIPTION_ID"
 echo ""
 
 SP_OUTPUT=$(az ad sp create-for-rbac \
     --name "$SP_NAME" \
-    --role "$ROLE" \
+    --role "Contributor" \
     --scopes "/subscriptions/$SUBSCRIPTION_ID" \
     --output json)
 
-if [ $? -ne 0 ]; then
-    echo "[ERROR] Failed to create Service Principal"
-    exit 1
-fi
-
-# Parse output
 CLIENT_ID=$(echo "$SP_OUTPUT" | grep -o '"appId": "[^"]*"' | cut -d'"' -f4)
 CLIENT_SECRET=$(echo "$SP_OUTPUT" | grep -o '"password": "[^"]*"' | cut -d'"' -f4)
-SP_TENANT=$(echo "$SP_OUTPUT" | grep -o '"tenant": "[^"]*"' | cut -d'"' -f4)
 
-echo "[OK] Service Principal created!"
-echo ""
-
-# =============================================================================
-# Output - GitHub Secrets
-# =============================================================================
-echo "=========================================="
-echo "  GitHub Secrets (Add these manually)"
-echo "=========================================="
-echo ""
-echo "Go to: GitHub Repo > Settings > Secrets and variables > Actions"
-echo "Add the following secrets:"
-echo ""
-echo "┌──────────────────────────────────────────────────────────────┐"
-echo "│ Secret Name              │ Value                             │"
-echo "├──────────────────────────────────────────────────────────────┤"
-echo "│ AZURE_CLIENT_ID          │ $CLIENT_ID"
-echo "│ AZURE_CLIENT_SECRET      │ $CLIENT_SECRET"
-echo "│ AZURE_SUBSCRIPTION_ID    │ $SUBSCRIPTION_ID"
-echo "│ AZURE_TENANT_ID          │ $SP_TENANT"
-echo "└──────────────────────────────────────────────────────────────┘"
+echo "✅ Service Principal created"
+echo "   Client ID: $CLIENT_ID"
 echo ""
 
 # =============================================================================
-# Save to file for the secrets script
+# Step 2: Add User Access Administrator role (required for role assignments)
 # =============================================================================
-SECRETS_FILE="scripts/.azure-secrets.json"
+echo "[2/3] Adding 'User Access Administrator' role..."
+echo "      (Required for Terraform to create role assignments)"
+echo ""
+
+# Get SP Object ID
+SP_OBJECT_ID=$(az ad sp show --id "$CLIENT_ID" --query "id" -o tsv)
+
+az role assignment create \
+    --assignee "$SP_OBJECT_ID" \
+    --role "User Access Administrator" \
+    --scope "/subscriptions/$SUBSCRIPTION_ID" \
+    --output none
+
+echo "✅ User Access Administrator role assigned"
+echo ""
+
+# =============================================================================
+# Step 3: Save credentials to file
+# =============================================================================
+echo "[3/3] Saving credentials to: $SECRETS_FILE"
 
 cat > "$SECRETS_FILE" << EOF
 {
-  "AZURE_CLIENT_ID": "$CLIENT_ID",
-  "AZURE_CLIENT_SECRET": "$CLIENT_SECRET",
-  "AZURE_SUBSCRIPTION_ID": "$SUBSCRIPTION_ID",
-  "AZURE_TENANT_ID": "$SP_TENANT"
+    "_note": "DO NOT COMMIT THIS FILE! Add to .gitignore",
+    "_created": "$(date '+%Y-%m-%d %H:%M:%S')",
+    "_service_principal_name": "$SP_NAME",
+    "AZURE_CLIENT_ID": "$CLIENT_ID",
+    "AZURE_CLIENT_SECRET": "$CLIENT_SECRET",
+    "AZURE_SUBSCRIPTION_ID": "$SUBSCRIPTION_ID",
+    "AZURE_TENANT_ID": "$TENANT_ID"
 }
 EOF
 
-echo "[2/2] Credentials saved to: $SECRETS_FILE"
+echo "✅ Credentials saved"
 echo ""
+
+# =============================================================================
+# Summary
+# =============================================================================
 echo "=========================================="
-echo "  IMPORTANT: Security Notice"
+echo "  Setup Complete!"
 echo "=========================================="
 echo ""
-echo "1. The file '$SECRETS_FILE' contains sensitive credentials"
-echo "2. It is already in .gitignore - NEVER commit it"
-echo "3. Run './scripts/github-secrets.sh' to set GitHub secrets"
-echo "4. Delete the file after setting secrets: rm $SECRETS_FILE"
+echo "Service Principal: $SP_NAME"
+echo "Client ID:         $CLIENT_ID"
+echo "Roles:             Contributor, User Access Administrator"
 echo ""
-echo "Next step:"
-echo "  ./scripts/github-secrets.sh"
+echo "Next steps:"
+echo "  1. Run: ./scripts/github-secrets.sh"
 echo ""
+echo "⚠️  Keep $SECRETS_FILE secure and never commit it!"

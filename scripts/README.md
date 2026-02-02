@@ -1,105 +1,153 @@
 # Scripts
 
-This folder contains utility scripts for project setup and maintenance.
+Utility scripts for project setup. Run in order.
 
-## ⚠️ Important: Use Bash Scripts
+## ⚠️ Important: Use Bash + `--body` Flag
 
-**PowerShell scripts have been replaced with Bash scripts** to avoid UTF-8 BOM (Byte Order Mark) issues that corrupt GitHub secrets when piping values.
-
-## 📋 Available Scripts
-
-| Script | Description | Run Order |
-|--------|-------------|-----------|
-| `github-setup.sh` | Create and configure GitHub repository | 1 |
-| `azure-terraform-backend.ps1` | Create Storage Account for Terraform state | 2 |
-| `azure-service-principal.sh` | Create Azure Service Principal for CI/CD | 3 |
-| `github-secrets.sh` | Set GitHub Secrets from Service Principal | 4 |
-| `github-secrets-post-terraform.sh` | Set additional secrets after Terraform apply | 5 |
+PowerShell pipes add UTF-8 BOM that corrupts secrets. All scripts use:
+```bash
+gh secret set NAME --body "$VALUE"  # ✅ Correct
+```
 
 ---
 
-## 🚀 Setup Order
+## 📋 Setup Order
 
-### Step 1: GitHub Repository (Already Done)
+### Step 1: Create GitHub Repository (one-time)
 ```bash
-./scripts/github-setup.sh
+# Create repo (already done)
+gh repo create AzureContainerApps-DevOps-Demo --public --source=. --push
 ```
 
-### Step 2: Terraform Backend Storage
+### Step 2: Create Terraform State Storage (one-time)
 ```powershell
-# PowerShell is OK here - no secrets piped
 .\scripts\azure-terraform-backend.ps1
 ```
-Creates Azure Storage Account for remote Terraform state.
+Creates:
+- Resource Group: `rg-terraform-state`
+- Storage Account: `stterraformacademo`
+- Containers: `tfstate-dev`, `tfstate-prod`
 
-### Step 3: Azure Service Principal
+### Step 3: Register Azure Provider (one-time)
+```bash
+az provider register --namespace Microsoft.App
+```
+
+### Step 4: Create Service Principal
 ```bash
 ./scripts/azure-service-principal.sh
 ```
-Creates Service Principal and saves credentials to `scripts/.azure-secrets.json`.
+Creates SP with roles:
+- **Contributor** - Create/manage resources
+- **User Access Administrator** - Assign roles to managed identities
 
-### Step 4: GitHub Secrets
+Output: `scripts/.azure-secrets.json`
+
+### Step 5: Set GitHub Auth Secrets
 ```bash
 ./scripts/github-secrets.sh
 ```
-Reads `.azure-secrets.json` and sets GitHub repository secrets automatically.
+Sets secrets for **both** `dev` and `prod` environments:
+- `AZURE_CLIENT_ID`
+- `AZURE_CLIENT_SECRET`
+- `AZURE_SUBSCRIPTION_ID`
+- `AZURE_TENANT_ID`
 
-**Key fix:** Uses `gh secret set NAME --body "$VALUE"` instead of piping to avoid BOM issues.
-
-### Step 5: Post-Terraform Secrets (After First Deploy)
+### Step 6: Deploy Infrastructure (via GitHub Actions)
 ```bash
-cd terraform/environments/dev
-../../../scripts/github-secrets-post-terraform.sh
+# Push to dev → triggers Terraform CD
+git push origin dev
+
+# Or manually trigger
+gh workflow run "Terraform CD" --ref dev -f environment=dev
 ```
-Sets ACR_NAME, RESOURCE_GROUP_NAME, CONTAINER_APP_NAME from Terraform outputs.
+
+### Step 7: Set Post-Terraform Secrets
+```bash
+# For dev environment
+./scripts/github-secrets-post-terraform.sh dev
+
+# For prod environment (after prod infra deployed)
+./scripts/github-secrets-post-terraform.sh prod
+```
+Sets environment-specific secrets:
+- `ACR_NAME`
+- `RESOURCE_GROUP_NAME`
+- `CONTAINER_APP_NAME`
+
+### Step 8: Deploy Application (via GitHub Actions)
+```bash
+# Push app changes → triggers App CD
+git push origin dev
+
+# Or manually trigger
+gh workflow run "App CD" --ref dev -f environment=dev
+```
 
 ---
 
-## 🔐 GitHub Secrets Reference
+## 📁 Files
 
-| Secret | Source | Used By |
+| File | Purpose |
+|------|---------|
+| `azure-terraform-backend.ps1` | Create Storage Account for TF state |
+| `azure-service-principal.sh` | Create SP with required roles |
+| `github-secrets.sh` | Set Azure auth secrets (both envs) |
+| `github-secrets-post-terraform.sh` | Set resource secrets per environment |
+| `.azure-secrets.json` | SP credentials (DO NOT COMMIT) |
+
+---
+
+## 🔐 Secrets Reference
+
+### Per Environment (dev, prod)
+
+| Secret | Source | Purpose |
 |--------|--------|---------|
-| `AZURE_CLIENT_ID` | Service Principal | Terraform CD, App CD |
-| `AZURE_CLIENT_SECRET` | Service Principal | Terraform CD, App CD |
-| `AZURE_SUBSCRIPTION_ID` | Service Principal | Terraform CD, App CD |
-| `AZURE_TENANT_ID` | Service Principal | Terraform CD, App CD |
-| `ACR_NAME` | Terraform output | App CD |
-| `RESOURCE_GROUP_NAME` | Terraform output | App CD |
-| `CONTAINER_APP_NAME` | Terraform output | App CD |
+| `AZURE_CLIENT_ID` | Service Principal | Azure authentication |
+| `AZURE_CLIENT_SECRET` | Service Principal | Azure authentication |
+| `AZURE_SUBSCRIPTION_ID` | Azure account | Azure authentication |
+| `AZURE_TENANT_ID` | Azure account | Azure authentication |
+| `ACR_NAME` | Terraform output | Container registry name |
+| `RESOURCE_GROUP_NAME` | Terraform output | Resource group for deployment |
+| `CONTAINER_APP_NAME` | Terraform output | Container app to update |
 
 ---
 
-## 🐛 Known Issue: UTF-8 BOM in PowerShell
+## 🐛 Troubleshooting
 
-PowerShell adds a UTF-8 BOM (Byte Order Mark: `EF BB BF`) when piping strings. This causes secrets to be stored as:
-```
-<BOM>6a0954ea-f636-4829-a565-cd32cafbbb9e
-```
-Instead of:
-```
-6a0954ea-f636-4829-a565-cd32cafbbb9e
-```
-
-This results in Azure AD error:
-```
-AADSTS900023: Specified tenant identifier '***' is neither a valid DNS name, nor a valid external domain.
-```
-
-**Solution:** Use `--body` flag instead of piping:
+### AADSTS900023: Invalid tenant identifier
+**Cause:** UTF-8 BOM in secret value
+**Solution:** Use `--body` flag, not pipe:
 ```bash
-# ❌ WRONG - adds BOM
-$value | gh secret set SECRET_NAME
+# ❌ Wrong
+echo "$value" | gh secret set NAME
 
-# ✅ CORRECT - no BOM
-gh secret set SECRET_NAME --body "$value"
+# ✅ Correct  
+gh secret set NAME --body "$value"
 ```
 
----
+### MissingSubscriptionRegistration: Microsoft.App
+**Cause:** Provider not registered
+**Solution:**
+```bash
+az provider register --namespace Microsoft.App
+```
 
-## ⚠️ Security Notes
+### AuthorizationFailed: roleAssignments/write
+**Cause:** SP missing User Access Administrator role
+**Solution:**
+```bash
+az role assignment create \
+  --assignee <SP_OBJECT_ID> \
+  --role "User Access Administrator" \
+  --scope /subscriptions/<SUB_ID>
+```
 
-- **Never commit** `scripts/.azure-secrets.json` (already in `.gitignore`)
-- Service Principal has **Contributor** role on subscription
-- Rotate credentials periodically
-- Consider using **OIDC/Federated Credentials** for production
-- **Delete `.azure-secrets.json` after setting secrets**
+### Job output is empty (secret masking)
+**Cause:** GitHub masks outputs containing secrets
+**Solution:** Construct values in consuming job:
+```yaml
+# Instead of using needs.job.outputs.value
+IMAGE="${{ secrets.ACR_NAME }}.azurecr.io/app:tag"
+```

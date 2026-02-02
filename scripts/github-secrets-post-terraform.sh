@@ -1,19 +1,17 @@
 #!/bin/bash
 # =============================================================================
-# GitHub Secrets - Post Terraform Setup (Bash)
+# GitHub Secrets - Post Terraform Setup
 # =============================================================================
-# This script sets additional GitHub secrets AFTER Terraform has been applied.
-# These secrets come from Terraform outputs (ACR name, Resource Group, etc.)
-#
-# IMPORTANT: Uses --body flag to avoid UTF-8 BOM issues!
+# Sets environment-specific secrets AFTER Terraform has created resources.
+# These values come from Terraform outputs.
 #
 # Prerequisites:
 #   - GitHub CLI (gh) installed and authenticated
-#   - Terraform has been applied (terraform apply completed)
+#   - Terraform apply completed for the environment
 #
 # Usage:
-#   cd terraform/environments/dev
-#   ../../../scripts/github-secrets-post-terraform.sh
+#   ./scripts/github-secrets-post-terraform.sh dev
+#   ./scripts/github-secrets-post-terraform.sh prod
 # =============================================================================
 
 set -e
@@ -21,86 +19,91 @@ set -e
 # =============================================================================
 # Configuration
 # =============================================================================
-REPO="AlanJ97/AzureContainerApps-DevOps-Demo"  # Change to your repo
+REPO="AlanJ97/AzureContainerApps-DevOps-Demo"
 
 # =============================================================================
-# Script Start
+# Parse Arguments
 # =============================================================================
+if [ -z "$1" ]; then
+    echo "❌ Usage: $0 <environment>"
+    echo "   Example: $0 dev"
+    echo "   Example: $0 prod"
+    exit 1
+fi
+
+ENV="$1"
+TERRAFORM_DIR="terraform/environments/$ENV"
+
 echo ""
 echo "=========================================="
-echo "  Post-Terraform GitHub Secrets Setup"
+echo "  Post-Terraform Secrets: $ENV"
 echo "=========================================="
 echo ""
 
-# Check if gh is installed
+# =============================================================================
+# Validate
+# =============================================================================
 if ! command -v gh &> /dev/null; then
-    echo "[ERROR] GitHub CLI (gh) is not installed."
+    echo "❌ GitHub CLI (gh) is not installed."
     exit 1
 fi
 
-# Check if terraform is installed
 if ! command -v terraform &> /dev/null; then
-    echo "[ERROR] Terraform is not installed."
+    echo "❌ Terraform is not installed."
     exit 1
 fi
 
-# Check if we're in a terraform directory
-if [ ! -f "terraform.tfstate" ] && [ ! -d ".terraform" ]; then
-    echo "[WARNING] Not in a Terraform directory. Make sure Terraform has been applied."
-    echo "          Run this from: terraform/environments/dev or terraform/environments/prod"
+if [ ! -d "$TERRAFORM_DIR" ]; then
+    echo "❌ Terraform directory not found: $TERRAFORM_DIR"
+    exit 1
 fi
 
 # =============================================================================
 # Get Terraform Outputs
 # =============================================================================
-echo "[1/4] Getting Terraform outputs..."
+echo "[1/4] Getting Terraform outputs from $TERRAFORM_DIR..."
+cd "$TERRAFORM_DIR"
 
 ACR_NAME=$(terraform output -raw acr_name 2>/dev/null || echo "")
 RESOURCE_GROUP=$(terraform output -raw resource_group_name 2>/dev/null || echo "")
 CONTAINER_APP=$(terraform output -raw container_app_name 2>/dev/null || echo "")
 
 if [ -z "$ACR_NAME" ]; then
-    echo "[ERROR] Could not get acr_name from Terraform outputs"
-    echo "        Make sure Terraform has been applied successfully"
+    echo "❌ Could not get outputs. Has Terraform been applied?"
+    echo "   Run: cd $TERRAFORM_DIR && terraform apply"
     exit 1
 fi
 
-echo "[OK] Terraform outputs retrieved:"
-echo "     ACR_NAME:            $ACR_NAME"
-echo "     RESOURCE_GROUP_NAME: $RESOURCE_GROUP"
-echo "     CONTAINER_APP_NAME:  $CONTAINER_APP"
+echo "✅ Terraform outputs:"
+echo "   ACR_NAME:            $ACR_NAME"
+echo "   RESOURCE_GROUP_NAME: $RESOURCE_GROUP"
+echo "   CONTAINER_APP_NAME:  $CONTAINER_APP"
 echo ""
 
 # =============================================================================
-# Set GitHub Secrets
-# IMPORTANT: Use --body flag to avoid UTF-8 BOM issues!
+# Set GitHub Secrets (use --body to avoid BOM issues)
 # =============================================================================
 echo "[2/4] Setting ACR_NAME..."
-gh secret set ACR_NAME --body "$ACR_NAME" --repo "$REPO"
-echo "[OK] ACR_NAME set"
+gh secret set ACR_NAME --env "$ENV" --repo "$REPO" --body "$ACR_NAME"
 
 echo "[3/4] Setting RESOURCE_GROUP_NAME..."
-gh secret set RESOURCE_GROUP_NAME --body "$RESOURCE_GROUP" --repo "$REPO"
-echo "[OK] RESOURCE_GROUP_NAME set"
+gh secret set RESOURCE_GROUP_NAME --env "$ENV" --repo "$REPO" --body "$RESOURCE_GROUP"
 
 echo "[4/4] Setting CONTAINER_APP_NAME..."
-gh secret set CONTAINER_APP_NAME --body "$CONTAINER_APP" --repo "$REPO"
-echo "[OK] CONTAINER_APP_NAME set"
+gh secret set CONTAINER_APP_NAME --env "$ENV" --repo "$REPO" --body "$CONTAINER_APP"
 
 # =============================================================================
 # Summary
 # =============================================================================
 echo ""
 echo "=========================================="
-echo "  Post-Terraform Secrets Configured!"
+echo "  Setup Complete!"
 echo "=========================================="
 echo ""
-echo "Secrets set in repository: $REPO"
+echo "Environment: $ENV"
+echo "Secrets set:"
+echo "  - ACR_NAME"
+echo "  - RESOURCE_GROUP_NAME"
+echo "  - CONTAINER_APP_NAME"
 echo ""
-echo "  [x] ACR_NAME:            $ACR_NAME"
-echo "  [x] RESOURCE_GROUP_NAME: $RESOURCE_GROUP"
-echo "  [x] CONTAINER_APP_NAME:  $CONTAINER_APP"
-echo ""
-echo "View secrets at:"
-echo "  https://github.com/$REPO/settings/secrets/actions"
-echo ""
+echo "The App CD workflow can now deploy to $ENV!"
