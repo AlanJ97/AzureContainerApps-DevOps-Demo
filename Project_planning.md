@@ -44,8 +44,8 @@
 |---|------|------|--------|
 | 23 | **Code coverage** threshold (80%) in CI | FREE | ✅ |
 | 24 | **Integration tests** with pytest | FREE | ✅ |
-| 25 | **Smoke tests** post-deployment | FREE | ⬜ |
-| 26 | ~~SonarQube/SonarCloud~~ | 💰 PAID for private | ⬜ Optional |
+| 25 | **Smoke tests** post-deployment | FREE | ✅ |
+| 26 | **SonarQube Cloud** code analysis | FREE (public repos) | ✅ |
 
 ### 🚀 Deployment Strategy
 | # | Task | Cost | Status |
