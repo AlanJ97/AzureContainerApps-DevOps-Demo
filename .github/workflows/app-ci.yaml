@@ -19,6 +19,7 @@ on:
       - 'pyproject.toml'
       - 'Dockerfile'
       - '.github/workflows/app-ci.yaml'
+      - 'sonar-project.properties'
   push:
     branches:
       - dev
@@ -27,6 +28,8 @@ on:
       - 'tests/**'
       - 'requirements*.txt'
       - 'pyproject.toml'
+      - '.github/workflows/app-ci.yaml'
+      - 'sonar-project.properties'
   workflow_dispatch:
 
 concurrency:
