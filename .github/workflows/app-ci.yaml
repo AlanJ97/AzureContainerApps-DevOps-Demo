@@ -240,6 +240,60 @@ jobs:
           fi
 
   # ===========================================================================
+  # SonarQube Cloud Analysis
+  # ===========================================================================
+  sonarqube:
+    name: 🔬 SonarQube Analysis
+    runs-on: ubuntu-latest
+    needs: [changes, test]
+    if: needs.changes.outputs.app == 'true' || needs.changes.outputs.tests == 'true'
+    
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Full history for better analysis
+      
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio httpx
+      
+      - name: Run Tests with Coverage
+        run: |
+          pytest tests/ \
+            --cov=app \
+            --cov-report=xml \
+            --junitxml=test-results.xml \
+            -v
+      
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      
+      - name: SonarQube Quality Gate
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        continue-on-error: true
+      
+      - name: SonarQube Summary
+        if: always()
+        run: |
+          echo "## 🔬 SonarQube Cloud Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Analysis completed and sent to SonarQube Cloud" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 [View Results](https://sonarcloud.io/project/overview?id=AlanJ97_AzureContainerApps-DevOps-Demo)" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
   # Dockerfile Lint
   # ===========================================================================
   dockerfile-lint:
@@ -273,7 +327,7 @@ jobs:
   ci-summary:
     name: ✅ CI Summary
     runs-on: ubuntu-latest
-    needs: [lint, security, test, dockerfile-lint]
+    needs: [lint, security, test, sonarqube, dockerfile-lint]
     if: always()
     
     steps:
@@ -286,6 +340,7 @@ jobs:
           echo "| Lint | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Security | ${{ needs.security.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Test | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SonarQube | ${{ needs.sonarqube.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Dockerfile Lint | ${{ needs.dockerfile-lint.result }} |" >> $GITHUB_STEP_SUMMARY
       
       - name: Fail on Critical Issues
