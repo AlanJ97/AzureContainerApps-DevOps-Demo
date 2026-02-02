@@ -59,7 +59,13 @@ async def lifespan(app: FastAPI):
     print(f"📍 Environment: {get_settings().environment}")
     
     # Register SIGTERM handler for graceful shutdown
-    signal.signal(signal.SIGTERM, handle_sigterm)
+    # Note: signal.signal() only works in the main thread, so we catch
+    # ValueError when running in test environments (TestClient uses threads)
+    try:
+        signal.signal(signal.SIGTERM, handle_sigterm)
+    except ValueError:
+        # Not in main thread (e.g., during testing) - skip signal handler
+        pass
     
     yield
     

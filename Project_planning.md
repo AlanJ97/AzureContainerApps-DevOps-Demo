@@ -42,8 +42,8 @@
 ### 🧪 Testing & Quality Gates
 | # | Task | Cost | Status |
 |---|------|------|--------|
-| 23 | **Code coverage** threshold (80%) in CI | FREE | ⬜ |
-| 24 | **Integration tests** with pytest | FREE | ⬜ |
+| 23 | **Code coverage** threshold (80%) in CI | FREE | ✅ |
+| 24 | **Integration tests** with pytest | FREE | ✅ |
 | 25 | **Smoke tests** post-deployment | FREE | ⬜ |
 | 26 | ~~SonarQube/SonarCloud~~ | 💰 PAID for private | ⬜ Optional |
 
@@ -53,6 +53,7 @@
 | 27 | **Manual approval gate** for prod | FREE (GitHub Environments) | ⬜ |
 | 28 | **Blue-green deployment** with traffic splitting | FREE | ⬜ |
 | 29 | **Automated rollback** on health check failure | FREE | ⬜ |
+| 38 | **Branch protection rules** on `main` (require PR, status checks) | FREE | ⬜ End of project |
 
 ### 📊 Observability
 | # | Task | Cost | Status |
@@ -126,6 +127,8 @@
 - No direct commits to `main` or `dev`
 - All changes via Pull Request
 - PR requires: passing CI checks + 1 approval
+
+> ⚠️ **Branch Sync Note:** If `main` gets ahead of `dev` (e.g., direct hotfixes), always merge `main` back into `dev` before continuing feature development to avoid divergence issues.
 
 ---
 

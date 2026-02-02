@@ -239,7 +239,34 @@
 | About Code Scanning Alerts | https://docs.github.com/en/code-security/concepts/code-scanning/about-code-scanning-alerts |
 
 ---
+## 🧪 Testing & Coverage
 
+### pytest-cov (Code Coverage)
+
+| Topic | Link |
+|-------|------|
+| **pytest-cov Overview** | https://pytest-cov.readthedocs.io/en/latest/readme.html |
+| **Installation & Usage** | https://pytest-cov.readthedocs.io/en/latest/readme.html#installation |
+| **Configuration Options** | https://pytest-cov.readthedocs.io/en/latest/config.html |
+| Reporting Options | https://pytest-cov.readthedocs.io/en/latest/reporting.html |
+| Coverage with Debuggers | https://pytest-cov.readthedocs.io/en/latest/debuggers.html |
+| Distributed Testing (xdist) | https://pytest-cov.readthedocs.io/en/latest/xdist.html |
+| Markers and Fixtures | https://pytest-cov.readthedocs.io/en/latest/markers-fixtures.html |
+
+### pytest (Testing Framework)
+
+| Topic | Link |
+|-------|------|
+| **How to use pytest** | https://docs.pytest.org/en/stable/how-to/usage.html |
+| **How to use fixtures** | https://docs.pytest.org/en/stable/how-to/fixtures.html |
+| **Assertions** | https://docs.pytest.org/en/stable/how-to/assert.html |
+| **Parametrize Tests** | https://docs.pytest.org/en/stable/how-to/parametrize.html |
+| Test Markers | https://docs.pytest.org/en/stable/how-to/mark.html |
+| Temporary Directories | https://docs.pytest.org/en/stable/how-to/tmp_path.html |
+| Capture stdout/stderr | https://docs.pytest.org/en/stable/how-to/capture-stdout-stderr.html |
+| Handle Test Failures | https://docs.pytest.org/en/stable/how-to/failures.html |
+
+---
 ## � Security & Reliability
 
 | Topic | Link |

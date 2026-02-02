@@ -1,27 +1,13 @@
 """
-Tests for the FastAPI application endpoints.
+Unit Tests for the FastAPI application endpoints.
+
+These tests focus on individual endpoint functionality
+with isolated test cases for each feature.
 """
 import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app, items_db
 
 
-@pytest.fixture(autouse=True)
-def reset_db():
-    """Reset the in-memory database before each test."""
-    global item_id_counter
-    items_db.clear()
-    # Note: We can't easily reset item_id_counter due to how it's used
-    # In a real app, this would be handled by a proper database
-
-
-@pytest.fixture
-def client():
-    """Create a test client."""
-    return TestClient(app)
-
-
+@pytest.mark.unit
 class TestHealthEndpoints:
     """Tests for health check endpoints."""
     
@@ -48,6 +34,7 @@ class TestHealthEndpoints:
         assert data["status"] == "alive"
 
 
+@pytest.mark.unit
 class TestInfoEndpoint:
     """Tests for the info endpoint."""
     
@@ -62,6 +49,7 @@ class TestInfoEndpoint:
         assert "hostname" in data
 
 
+@pytest.mark.unit
 class TestRootEndpoint:
     """Tests for the root endpoint."""
     
@@ -75,6 +63,7 @@ class TestRootEndpoint:
         assert data["docs_url"] == "/docs"
 
 
+@pytest.mark.unit
 class TestItemsEndpoints:
     """Tests for the items CRUD endpoints."""
     
@@ -195,6 +184,7 @@ class TestItemsEndpoints:
         assert response.status_code == 404
 
 
+@pytest.mark.unit
 class TestOpenAPI:
     """Tests for OpenAPI documentation."""
     
