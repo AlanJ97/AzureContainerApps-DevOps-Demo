@@ -306,29 +306,37 @@ jobs:
             
             echo "Current active revision: ${CURRENT_REVISION:-'none'}"
             
-            # Create new revision with commit SHA as suffix
-            az containerapp update \
-              --name $APP_NAME \
-              --resource-group $RG \
-              --image $IMAGE \
-              --revision-suffix $SHORT_SHA \
-              --set-env-vars \
-                "ENVIRONMENT=$ENV" \
-                "GIT_COMMIT=${{ github.sha }}" \
-                "DEPLOY_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            
-            NEW_REVISION="${APP_NAME}--${SHORT_SHA}"
-            echo "New revision created: $NEW_REVISION"
-            
-            add_label() {
-              local label=$1
-              local revision=$2
-              local retries=5
-              local delay=5
-
-              for i in $(seq 1 $retries); do
-                echo "🏷️ Labeling revision '$revision' as '$label' (attempt $i/$retries)..."
-                az containerapp revision label add \
+    NEW_REVISION="${APP_NAME}--${SHORT_SHA}"
+    
+    # Check if revision with this SHA already exists
+    EXISTING_REVISION=$(az containerapp revision list \
+      --name $APP_NAME \
+      --resource-group $RG \
+      --query "[?name=='$NEW_REVISION'].name | [0]" -o tsv 2>/dev/null || echo "")
+    
+    if [[ -n "$EXISTING_REVISION" ]]; then
+      echo "ℹ️ Revision $NEW_REVISION already exists, reusing it..."
+      
+      # Ensure it's active
+      az containerapp revision activate \
+        --name $APP_NAME \
+        --resource-group $RG \
+        --revision $NEW_REVISION
+    else
+      echo "🆕 Creating new revision with commit SHA as suffix..."
+      # Create new revision with commit SHA as suffix
+      az containerapp update \
+        --name $APP_NAME \
+        --resource-group $RG \
+        --image $IMAGE \
+        --revision-suffix $SHORT_SHA \
+        --set-env-vars \
+          "ENVIRONMENT=$ENV" \
+          "GIT_COMMIT=${{ github.sha }}" \
+          "DEPLOY_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      
+      echo "New revision created: $NEW_REVISION"
+    fi
                   --name $APP_NAME \
                   --resource-group $RG \
                   --label $label \
