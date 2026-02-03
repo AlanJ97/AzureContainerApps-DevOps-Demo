@@ -326,11 +326,21 @@ jobs:
             if [[ -n "$EXISTING_REVISION" ]]; then
               echo "ℹ️ Revision $NEW_REVISION already exists, reusing it..."
               
-              # Ensure it's active
-              az containerapp revision activate \
+              # Check if it's already active
+              REVISION_ACTIVE=$(az containerapp revision list \
                 --name $APP_NAME \
                 --resource-group $RG \
-                --revision $NEW_REVISION
+                --query "[?name=='$NEW_REVISION'].properties.active | [0]" -o tsv)
+              
+              if [[ "$REVISION_ACTIVE" != "true" ]]; then
+                echo "🔄 Activating revision..."
+                az containerapp revision activate \
+                  --name $APP_NAME \
+                  --resource-group $RG \
+                  --revision $NEW_REVISION
+              else
+                echo "✅ Revision is already active"
+              fi
             else
               echo "🆕 Creating new revision with commit SHA as suffix..."
               # Create new revision with commit SHA as suffix
