@@ -432,18 +432,25 @@ jobs:
           
           # For prod, also construct the green-labeled URL for smoke tests
           if [[ "$ENV" == "prod" ]]; then
+            # Use variables (not secrets) so output isn't masked
+            APP_NAME_VAR="${{ vars.CONTAINER_APP_NAME_PROD }}"
             ENV_ID=$(az containerapp show \
               --name $APP_NAME \
               --resource-group $RG \
               --query "properties.environmentId" -o tsv)
             APP_DOMAIN=$(az resource show --ids "$ENV_ID" --query "properties.defaultDomain" -o tsv)
-            GREEN_URL="https://${APP_NAME}---green.${APP_DOMAIN}"
+            GREEN_URL="https://${APP_NAME_VAR}---green.${APP_DOMAIN}"
             echo "🔍 DEBUG: Setting green_url=$GREEN_URL"
             echo "green_url=$GREEN_URL" >> $GITHUB_OUTPUT
           else
             # For dev, green_url is same as app_url
-            echo "🔍 DEBUG: Setting green_url=https://$APP_URL (dev)"
-            echo "green_url=https://$APP_URL" >> $GITHUB_OUTPUT
+            APP_NAME_VAR="${{ vars.CONTAINER_APP_NAME_DEV }}"
+            FQDN=$(az containerapp show \
+              --name $APP_NAME \
+              --resource-group $RG \
+              --query "properties.configuration.ingress.fqdn" -o tsv)
+            echo "🔍 DEBUG: Setting green_url=https://$FQDN (dev)"
+            echo "green_url=https://$FQDN" >> $GITHUB_OUTPUT
           fi
           
           # DEBUG: Show the app URL we got
