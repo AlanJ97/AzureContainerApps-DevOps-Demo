@@ -440,25 +440,43 @@ jobs:
         id: smoke
         run: |
           ENV="${{ needs.setup.outputs.environment }}"
+          APP_NAME="${{ secrets.CONTAINER_APP_NAME }}"
+          RG="${{ secrets.RESOURCE_GROUP_NAME }}"
           
           # Get the app URL directly from Azure
           if [[ "$ENV" == "prod" ]]; then
             # For prod, test the green-labeled URL (new revision, not yet live)
             ENV_ID=$(az containerapp show \
-              --name ${{ secrets.CONTAINER_APP_NAME }} \
-              --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} \
+              --name $APP_NAME \
+              --resource-group $RG \
               --query "properties.environmentId" -o tsv)
             APP_DOMAIN=$(az resource show --ids "$ENV_ID" --query "properties.defaultDomain" -o tsv)
-            APP_URL="https://${{ secrets.CONTAINER_APP_NAME }}---green.${APP_DOMAIN}"
+            APP_URL="https://${APP_NAME}---green.${APP_DOMAIN}"
             echo "🔵🟢 Testing GREEN revision at: $APP_URL"
           else
             # For dev, test the main URL
             FQDN=$(az containerapp show \
-              --name ${{ secrets.CONTAINER_APP_NAME }} \
-              --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} \
+              --name $APP_NAME \
+              --resource-group $RG \
               --query "properties.configuration.ingress.fqdn" -o tsv)
             APP_URL="https://$FQDN"
             echo "🔗 Testing DEV at: $APP_URL"
+          fi
+
+          if [[ "$ENV" == "prod" ]]; then
+            echo "⏳ Waiting for GREEN label to become available..."
+            for i in $(seq 1 12); do
+              GREEN_LABEL=$(az containerapp ingress traffic show \
+                --name $APP_NAME \
+                --resource-group $RG \
+                --query "[?label=='green'] | length(@)" -o tsv)
+              if [[ "$GREEN_LABEL" != "0" && -n "$GREEN_LABEL" ]]; then
+                echo "✅ GREEN label detected."
+                break
+              fi
+              echo "  ⏳ Label not ready (attempt $i/12), retrying in 5s..."
+              sleep 5
+            done
           fi
           
           echo "app_url=$APP_URL" >> $GITHUB_OUTPUT
