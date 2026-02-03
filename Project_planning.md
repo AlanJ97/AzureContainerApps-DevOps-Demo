@@ -50,8 +50,8 @@
 ### 🚀 Deployment Strategy
 | # | Task | Cost | Status |
 |---|------|------|--------|
-| 27 | **Manual approval gate** for prod | FREE (GitHub Environments) | ⬜ |
-| 28 | **Blue-green deployment** with traffic splitting | FREE | ⬜ |
+| 27 | **Manual approval gate** for prod | FREE (GitHub Environments) | ✅ |
+| 28 | **Blue-green deployment** with traffic splitting | FREE | ✅ |
 | 29 | **Automated rollback** on health check failure | FREE | ⬜ |
 | 38 | **Branch protection rules** on `main` (require PR, status checks) | FREE | ⬜ End of project |
 
