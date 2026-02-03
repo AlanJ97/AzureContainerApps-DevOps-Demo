@@ -90,7 +90,7 @@ jobs:
       # the image name in the deploy job using the image_tag from setup.
     
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       
       - name: Azure Login
         uses: azure/login@v2
@@ -174,7 +174,7 @@ jobs:
     needs: [setup, build]
     
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set ACR Name
         run: |
@@ -248,7 +248,7 @@ jobs:
       deployment_label: ${{ steps.deploy.outputs.deployment_label }}
     
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       
       - name: Azure Login
         uses: azure/login@v2

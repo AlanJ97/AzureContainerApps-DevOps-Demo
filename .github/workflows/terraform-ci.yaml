@@ -41,7 +41,7 @@ jobs:
       environments: ${{ steps.filter.outputs.changes }}
       module: ${{ steps.filter.outputs.module }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       
       - uses: dorny/paths-filter@v3
         id: filter
@@ -61,7 +61,7 @@ jobs:
     name: 📝 Terraform Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -95,7 +95,7 @@ jobs:
     name: 🔒 Security Scan (Checkov)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       
       - name: Run Checkov
         uses: bridgecrewio/checkov-action@v12
@@ -123,7 +123,7 @@ jobs:
     needs: [changes]
     if: needs.changes.outputs.module == 'true' || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -155,7 +155,7 @@ jobs:
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
     
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -230,7 +230,7 @@ jobs:
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
     
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       
       - uses: hashicorp/setup-terraform@v3
         with:

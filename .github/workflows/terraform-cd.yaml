@@ -91,7 +91,7 @@ jobs:
         working-directory: ${{ needs.setup.outputs.working_dir }}
     
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       
       - uses: hashicorp/setup-terraform@v3
         with:
