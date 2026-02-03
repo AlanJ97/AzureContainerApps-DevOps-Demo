@@ -320,22 +320,34 @@ jobs:
             NEW_REVISION="${APP_NAME}--${SHORT_SHA}"
             echo "New revision created: $NEW_REVISION"
             
+            add_label() {
+              local label=$1
+              local revision=$2
+              local retries=5
+              local delay=5
+
+              for i in $(seq 1 $retries); do
+                echo "🏷️ Labeling revision '$revision' as '$label' (attempt $i/$retries)..."
+                az containerapp revision label add \
+                  --name $APP_NAME \
+                  --resource-group $RG \
+                  --label $label \
+                  --revision $revision && return 0
+
+                echo "  ⚠️ Label add failed, retrying in ${delay}s..."
+                sleep $delay
+              done
+
+              echo "❌ Failed to label revision '$revision' as '$label'"
+              return 1
+            }
+
             # Label the new revision as 'green'
-            echo "🏷️ Labeling new revision as 'green'..."
-            az containerapp revision label add \
-              --name $APP_NAME \
-              --resource-group $RG \
-              --label green \
-              --revision $NEW_REVISION 2>/dev/null || true
+            add_label green $NEW_REVISION
             
             # If there's an existing revision, label it as 'blue'
             if [[ -n "$CURRENT_REVISION" && "$CURRENT_REVISION" != "$NEW_REVISION" ]]; then
-              echo "🏷️ Labeling current revision as 'blue'..."
-              az containerapp revision label add \
-                --name $APP_NAME \
-                --resource-group $RG \
-                --label blue \
-                --revision $CURRENT_REVISION 2>/dev/null || true
+              add_label blue $CURRENT_REVISION
             fi
 
             # Keep production traffic on blue until smoke tests pass
