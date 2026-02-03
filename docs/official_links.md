@@ -163,6 +163,10 @@
 | Choose When Workflows Run | https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run |
 | Choose Where Workflows Run | https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run |
 | Use Workflow Templates | https://docs.github.com/en/actions/how-tos/write-workflows/use-workflow-templates |
+| **Manage Environments (Deployments)** | https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments |
+| **Deployments & Environments (Reference)** | https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments |
+| **Create Custom Protection Rules** | https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/create-custom-protection-rules |
+| Manual Approvals (Community Article) | https://meijer.works/articles/manual-approvals-in-github-actions/ |
 
 ### Python CI/CD
 

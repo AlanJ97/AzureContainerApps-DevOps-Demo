@@ -3,6 +3,10 @@
 # =============================================================================
 # Triggers: Push to dev/main when app/** files change
 # Purpose: Build Docker image, push to ACR, deploy to Azure Container Apps
+# Features:
+#   - Manual approval gate for production (GitHub Environments)
+#   - Blue-green deployment with traffic labels (prod only)
+#   - Automated smoke tests post-deployment
 # =============================================================================
 
 name: "App CD"
@@ -17,6 +21,7 @@ on:
       - 'requirements*.txt'
       - 'pyproject.toml'
       - 'Dockerfile'
+      - '.github/workflows/app-cd.yaml'
   workflow_dispatch:
     inputs:
       environment:
@@ -78,7 +83,6 @@ jobs:
     name: 🐳 Build & Push
     runs-on: ubuntu-latest
     needs: setup
-    environment: ${{ needs.setup.outputs.environment }}
     outputs:
       image_digest: ${{ steps.push.outputs.digest }}
       # Note: We don't pass full_image_name as output because GitHub Actions
@@ -156,7 +160,6 @@ jobs:
     name: 🔐 Security Scan
     runs-on: ubuntu-latest
     needs: [setup, build]
-    environment: ${{ needs.setup.outputs.environment }}
     
     steps:
       - uses: actions/checkout@v5
@@ -202,6 +205,9 @@ jobs:
   # ===========================================================================
   # Deploy to Azure Container Apps
   # ===========================================================================
+  # For prod: Uses blue-green deployment with traffic labels
+  # For dev: Simple rolling deployment
+  # ===========================================================================
   deploy:
     name: 🚀 Deploy to ACA
     runs-on: ubuntu-latest
@@ -209,6 +215,8 @@ jobs:
     environment: ${{ needs.setup.outputs.environment }}
     outputs:
       app_url: ${{ steps.deploy.outputs.app_url }}
+      revision_name: ${{ steps.deploy.outputs.revision_name }}
+      deployment_label: ${{ steps.deploy.outputs.deployment_label }}
     
     steps:
       - uses: actions/checkout@v5
@@ -230,20 +238,98 @@ jobs:
           ENV="${{ needs.setup.outputs.environment }}"
           RG="${{ secrets.RESOURCE_GROUP_NAME }}"
           APP_NAME="${{ secrets.CONTAINER_APP_NAME }}"
+          SHORT_SHA="${{ needs.setup.outputs.short_sha }}"
           # Construct image name here instead of passing as output (GitHub blocks outputs containing secrets)
           IMAGE="${{ secrets.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.image_tag }}"
           
-          echo "📦 Deploying $IMAGE to $APP_NAME..."
+          echo "📦 Deploying $IMAGE to $APP_NAME ($ENV)..."
           
-          # Update the container app with the new image
-          az containerapp update \
-            --name $APP_NAME \
-            --resource-group $RG \
-            --image $IMAGE \
-            --set-env-vars \
-              "ENVIRONMENT=$ENV" \
-              "GIT_COMMIT=${{ github.sha }}" \
-              "DEPLOY_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          if [[ "$ENV" == "prod" ]]; then
+            # =================================================================
+            # BLUE-GREEN DEPLOYMENT (Production only)
+            # =================================================================
+            # 1. Deploy new revision with unique suffix (green)
+            # 2. Label it as 'green' (0% traffic initially)
+            # 3. Test via green-labeled URL
+            # 4. After smoke tests pass, swap traffic to green
+            # =================================================================
+            
+            echo "🔵🟢 Blue-Green Deployment: Creating new revision..."
+            
+            # Get current active revision (blue)
+            CURRENT_REVISION=$(az containerapp revision list \
+              --name $APP_NAME \
+              --resource-group $RG \
+              --query "[?properties.trafficWeight > 0].name | [0]" -o tsv 2>/dev/null || echo "")
+            
+            echo "Current active revision: ${CURRENT_REVISION:-'none'}"
+            
+            # Create new revision with commit SHA as suffix
+            az containerapp update \
+              --name $APP_NAME \
+              --resource-group $RG \
+              --image $IMAGE \
+              --revision-suffix $SHORT_SHA \
+              --set-env-vars \
+                "ENVIRONMENT=$ENV" \
+                "GIT_COMMIT=${{ github.sha }}" \
+                "DEPLOY_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            
+            NEW_REVISION="${APP_NAME}--${SHORT_SHA}"
+            echo "New revision created: $NEW_REVISION"
+            
+            # Label the new revision as 'green'
+            echo "🏷️ Labeling new revision as 'green'..."
+            az containerapp revision label add \
+              --name $APP_NAME \
+              --resource-group $RG \
+              --label green \
+              --revision $NEW_REVISION 2>/dev/null || true
+            
+            # If there's an existing revision, label it as 'blue'
+            if [[ -n "$CURRENT_REVISION" && "$CURRENT_REVISION" != "$NEW_REVISION" ]]; then
+              echo "🏷️ Labeling current revision as 'blue'..."
+              az containerapp revision label add \
+                --name $APP_NAME \
+                --resource-group $RG \
+                --label blue \
+                --revision $CURRENT_REVISION 2>/dev/null || true
+            fi
+
+            # Keep production traffic on blue until smoke tests pass
+            if [[ -n "$CURRENT_REVISION" && "$CURRENT_REVISION" != "$NEW_REVISION" ]]; then
+              echo "🔵🟢 Keeping traffic on BLUE (green=0%) until smoke tests pass..."
+              az containerapp ingress traffic set \
+                --name $APP_NAME \
+                --resource-group $RG \
+                --label-weight blue=100 green=0
+            else
+              # First deployment / no prior revision: green becomes live by definition
+              echo "🔵🟢 No previous revision detected; routing traffic to GREEN (100%)."
+              az containerapp ingress traffic set \
+                --name $APP_NAME \
+                --resource-group $RG \
+                --label-weight green=100
+            fi
+            
+            echo "revision_name=$NEW_REVISION" >> $GITHUB_OUTPUT
+            echo "deployment_label=green" >> $GITHUB_OUTPUT
+            
+          else
+            # =================================================================
+            # SIMPLE DEPLOYMENT (Dev environment)
+            # =================================================================
+            az containerapp update \
+              --name $APP_NAME \
+              --resource-group $RG \
+              --image $IMAGE \
+              --set-env-vars \
+                "ENVIRONMENT=$ENV" \
+                "GIT_COMMIT=${{ github.sha }}" \
+                "DEPLOY_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            
+            echo "deployment_label=latest" >> $GITHUB_OUTPUT
+          fi
           
           # Get the app URL
           APP_URL=$(az containerapp show \
@@ -263,16 +349,22 @@ jobs:
           echo "| Environment | ${{ needs.setup.outputs.environment }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Image | ${{ needs.build.outputs.full_image_name }} |" >> $GITHUB_STEP_SUMMARY
           echo "| URL | ${{ steps.deploy.outputs.app_url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Revision | ${{ steps.deploy.outputs.revision_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Label | ${{ steps.deploy.outputs.deployment_label }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Commit | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
 
   # ===========================================================================
   # Post-Deployment Smoke Tests
   # ===========================================================================
+  # For prod: Tests the green-labeled revision (not yet receiving traffic)
+  # For dev: Tests the main URL directly
+  # ===========================================================================
   smoke-test:
     name: 💨 Post-Deploy Smoke Test
     runs-on: ubuntu-latest
     needs: [setup, deploy]
-    environment: ${{ needs.setup.outputs.environment }}
+    outputs:
+      status: ${{ steps.smoke.outputs.status }}
     
     steps:
       - name: Wait for Deployment
@@ -292,14 +384,28 @@ jobs:
       - name: Run Smoke Tests
         id: smoke
         run: |
-          # Get the app URL directly from Azure
-          APP_URL=$(az containerapp show \
-            --name ${{ secrets.CONTAINER_APP_NAME }} \
-            --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} \
-            --query "properties.configuration.ingress.fqdn" -o tsv)
-          APP_URL="https://$APP_URL"
+          ENV="${{ needs.setup.outputs.environment }}"
           
-          echo "🔗 App URL: $APP_URL"
+          # Get the app URL directly from Azure
+          if [[ "$ENV" == "prod" ]]; then
+            # For prod, test the green-labeled URL (new revision, not yet live)
+            ENV_ID=$(az containerapp show \
+              --name ${{ secrets.CONTAINER_APP_NAME }} \
+              --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} \
+              --query "properties.environmentId" -o tsv)
+            APP_DOMAIN=$(az resource show --ids "$ENV_ID" --query "properties.defaultDomain" -o tsv)
+            APP_URL="https://${{ secrets.CONTAINER_APP_NAME }}---green.${APP_DOMAIN}"
+            echo "🔵🟢 Testing GREEN revision at: $APP_URL"
+          else
+            # For dev, test the main URL
+            FQDN=$(az containerapp show \
+              --name ${{ secrets.CONTAINER_APP_NAME }} \
+              --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} \
+              --query "properties.configuration.ingress.fqdn" -o tsv)
+            APP_URL="https://$FQDN"
+            echo "🔗 Testing DEV at: $APP_URL"
+          fi
+          
           echo "app_url=$APP_URL" >> $GITHUB_OUTPUT
           
           MAX_RETRIES=5
@@ -427,12 +533,79 @@ jobs:
           echo "| \`/docs\` | API documentation |" >> $GITHUB_STEP_SUMMARY
 
   # ===========================================================================
+  # Traffic Switch (Blue-Green) - Production Only
+  # ===========================================================================
+  # After smoke tests pass, switch 100% traffic to the green revision
+  # ===========================================================================
+  traffic-switch:
+    name: 🔀 Switch Traffic to Green
+    runs-on: ubuntu-latest
+    needs: [setup, deploy, smoke-test]
+    if: needs.setup.outputs.environment == 'prod' && needs.smoke-test.outputs.status == 'passed'
+    
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: |
+            {
+              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
+              "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
+            }
+      
+      - name: Switch Traffic to Green
+        id: switch
+        run: |
+          APP_NAME="${{ secrets.CONTAINER_APP_NAME }}"
+          RG="${{ secrets.RESOURCE_GROUP_NAME }}"
+          
+          echo "🔀 Switching 100% traffic to GREEN revision..."
+          
+          # Switch all traffic to the green label (fallback if blue label missing)
+          if az containerapp ingress traffic set \
+              --name $APP_NAME \
+              --resource-group $RG \
+              --label-weight blue=0 green=100; then
+            echo "🔀 Traffic switched using blue/green labels."
+          else
+            echo "🔀 Blue label not found; switching to green-only."
+            az containerapp ingress traffic set \
+              --name $APP_NAME \
+              --resource-group $RG \
+              --label-weight green=100
+          fi
+          
+          echo "✅ Traffic switched to green revision!"
+          
+          # Get current traffic distribution
+          echo ""
+          echo "📊 Current traffic distribution:"
+          az containerapp ingress traffic show \
+            --name $APP_NAME \
+            --resource-group $RG
+      
+      - name: Traffic Switch Summary
+        run: |
+          echo "## 🔀 Blue-Green Traffic Switch" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Traffic successfully switched to GREEN revision**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Label | Traffic |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔵 Blue (previous) | 0% |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟢 Green (current) | 100% |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To rollback, run: \`az containerapp ingress traffic set --name ${{ secrets.CONTAINER_APP_NAME }} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --label-weight blue=100 green=0\`" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
   # Notification
   # ===========================================================================
   notify:
     name: 📢 Notify
     runs-on: ubuntu-latest
-    needs: [setup, build, deploy, smoke-test]
+    needs: [setup, build, deploy, smoke-test, traffic-switch]
     if: always()
     
     steps:
@@ -445,6 +618,9 @@ jobs:
           echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Deploy | ${{ needs.deploy.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Smoke Test | ${{ needs.smoke-test.result }} |" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ needs.setup.outputs.environment }}" == "prod" ]]; then
+            echo "| Traffic Switch | ${{ needs.traffic-switch.result }} |" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Environment:** ${{ needs.setup.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
