@@ -277,15 +277,6 @@ jobs:
           fi
           
           SHORT_SHA="${{ needs.setup.outputs.short_sha }}"
-          
-          # DEBUG: Show what we're using
-          echo "=========================================="
-          echo "🔍 DEBUG: Deployment Configuration"
-          echo "=========================================="
-          echo "ENV = $ENV"
-          echo "RESOURCE_GROUP_NAME = $RG"
-          echo "CONTAINER_APP_NAME = $APP_NAME"
-          echo "=========================================="
           if [[ "$ENV" == "prod" ]]; then
             ACR_NAME="${{ secrets.ACR_NAME_PROD }}"
           else
@@ -302,7 +293,7 @@ jobs:
           # Construct image name here instead of passing as output (GitHub blocks outputs containing secrets)
           IMAGE="${LOGIN_SERVER}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.image_tag }}"
           
-          echo "📦 Deploying $IMAGE to $APP_NAME ($ENV)..."
+          echo "📦 Deploying to $APP_NAME ($ENV)..."
           
           if [[ "$ENV" == "prod" ]]; then
             # =================================================================
@@ -446,7 +437,6 @@ jobs:
               --query "properties.environmentId" -o tsv)
             APP_DOMAIN=$(az resource show --ids "$ENV_ID" --query "properties.defaultDomain" -o tsv)
             GREEN_URL="https://${APP_NAME}---green.${APP_DOMAIN}"
-            echo "🔍 DEBUG: Setting green_url=$GREEN_URL"
             echo "green_url=$GREEN_URL" >> $GITHUB_OUTPUT
           else
             # For dev, green_url is same as app_url
@@ -454,17 +444,8 @@ jobs:
               --name $APP_NAME \
               --resource-group $RG \
               --query "properties.configuration.ingress.fqdn" -o tsv)
-            echo "🔍 DEBUG: Setting green_url=https://$FQDN (dev)"
             echo "green_url=https://$FQDN" >> $GITHUB_OUTPUT
           fi
-          
-          # DEBUG: Show the app URL we got
-          echo "=========================================="
-          echo "🔍 DEBUG: Retrieved App URL"
-          echo "=========================================="
-          echo "APP_URL (expected: ca-aca-devops-demo-prod.agreeablepond-a38c9220.eastus2.azurecontainerapps.io) = $APP_URL"
-          echo "Full URL: https://$APP_URL"
-          echo "=========================================="
           
           echo "app_url=https://$APP_URL" >> $GITHUB_OUTPUT
           echo "✅ Deployed to: https://$APP_URL"
@@ -505,13 +486,7 @@ jobs:
           ENV="${{ needs.setup.outputs.environment }}"
           APP_URL="${{ needs.deploy.outputs.green_url }}"
           
-          echo "=========================================="
-          echo "� DEBUG: Smoke Test Inputs"
-          echo "=========================================="
-          echo "Environment: $ENV"
-          echo "green_url from deploy output: $APP_URL"
-          echo "=========================================="
-          
+
           if [[ -z "$APP_URL" ]]; then
             echo "❌ ERROR: green_url is empty! Deploy job didn't set the output correctly."
             exit 1
