@@ -679,6 +679,7 @@ jobs:
     name: 🔀 Switch Traffic to Green
     runs-on: ubuntu-latest
     needs: [setup, deploy, smoke-test]
+    environment: ${{ needs.setup.outputs.environment }}
     if: needs.setup.outputs.environment == 'prod' && needs.smoke-test.outputs.status == 'passed'
     
     steps:
