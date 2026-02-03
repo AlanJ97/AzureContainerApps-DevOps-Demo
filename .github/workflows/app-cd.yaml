@@ -53,8 +53,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       environment: ${{ steps.env.outputs.environment }}
-      acr_name: ${{ steps.env.outputs.acr_name }}
-      login_server: ${{ steps.env.outputs.login_server }}
       image_tag: ${{ steps.meta.outputs.image_tag }}
       short_sha: ${{ steps.meta.outputs.short_sha }}
     steps:
@@ -68,27 +66,7 @@ jobs:
           else
             ENV="dev"
           fi
-          if [[ "$ENV" == "prod" ]]; then
-            ACR_NAME="${{ vars.ACR_NAME_PROD }}"
-            if [[ -z "$ACR_NAME" ]]; then
-              ACR_NAME="${{ secrets.ACR_NAME_PROD }}"
-            fi
-          else
-            ACR_NAME="${{ vars.ACR_NAME_DEV }}"
-            if [[ -z "$ACR_NAME" ]]; then
-              ACR_NAME="${{ secrets.ACR_NAME_DEV }}"
-            fi
-          fi
-          if [[ -z "$ACR_NAME" ]]; then
-            ACR_NAME="${{ secrets.ACR_NAME }}"
-          fi
-          if [[ -z "$ACR_NAME" ]]; then
-            echo "ACR_NAME is not set. Define repo vars ACR_NAME_DEV/ACR_NAME_PROD or repo secret ACR_NAME." >&2
-            exit 1
-          fi
           echo "environment=$ENV" >> $GITHUB_OUTPUT
-          echo "acr_name=$ACR_NAME" >> $GITHUB_OUTPUT
-          echo "login_server=${ACR_NAME}.azurecr.io" >> $GITHUB_OUTPUT
       
       - name: Generate Image Metadata
         id: meta
@@ -127,14 +105,26 @@ jobs:
       
       # Login to ACR using Service Principal (no admin credentials needed!)
       # The Service Principal has Contributor role which includes AcrPush
+      - name: Set ACR Name
+        run: |
+          if [[ "${{ needs.setup.outputs.environment }}" == "prod" ]]; then
+            ACR_NAME="${{ secrets.ACR_NAME_PROD }}"
+          else
+            ACR_NAME="${{ secrets.ACR_NAME_DEV }}"
+          fi
+          if [[ -z "$ACR_NAME" ]]; then
+            ACR_NAME="${{ secrets.ACR_NAME }}"
+          fi
+          if [[ -z "$ACR_NAME" ]]; then
+            echo "ACR_NAME is not set. Define repo secrets ACR_NAME_DEV/ACR_NAME_PROD or ACR_NAME." >&2
+            exit 1
+          fi
+          echo "ACR_NAME=$ACR_NAME" >> $GITHUB_ENV
+          echo "LOGIN_SERVER=${ACR_NAME}.azurecr.io" >> $GITHUB_ENV
+
       - name: Login to ACR
         run: |
-          az acr login --name ${{ needs.setup.outputs.acr_name }}
-      
-      - name: Set ACR Info
-        id: acr
-        run: |
-          echo "login_server=${{ needs.setup.outputs.login_server }}" >> $GITHUB_OUTPUT
+          az acr login --name ${{ env.ACR_NAME }}
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -143,7 +133,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ steps.acr.outputs.login_server }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.LOGIN_SERVER }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
@@ -168,7 +158,7 @@ jobs:
       - name: Output Image Info
         id: image
         run: |
-          FULL_IMAGE="${{ steps.acr.outputs.login_server }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.image_tag }}"
+          FULL_IMAGE="${{ env.LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.image_tag }}"
           echo "full_image_name=$FULL_IMAGE" >> $GITHUB_OUTPUT
           echo "## 🐳 Docker Image Built" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -185,6 +175,23 @@ jobs:
     
     steps:
       - uses: actions/checkout@v5
+
+      - name: Set ACR Name
+        run: |
+          if [[ "${{ needs.setup.outputs.environment }}" == "prod" ]]; then
+            ACR_NAME="${{ secrets.ACR_NAME_PROD }}"
+          else
+            ACR_NAME="${{ secrets.ACR_NAME_DEV }}"
+          fi
+          if [[ -z "$ACR_NAME" ]]; then
+            ACR_NAME="${{ secrets.ACR_NAME }}"
+          fi
+          if [[ -z "$ACR_NAME" ]]; then
+            echo "ACR_NAME is not set. Define repo secrets ACR_NAME_DEV/ACR_NAME_PROD or ACR_NAME." >&2
+            exit 1
+          fi
+          echo "ACR_NAME=$ACR_NAME" >> $GITHUB_ENV
+          echo "LOGIN_SERVER=${ACR_NAME}.azurecr.io" >> $GITHUB_ENV
       
       - name: Azure Login
         uses: azure/login@v2
@@ -198,13 +205,13 @@ jobs:
             }
       
       - name: ACR Login
-        run: az acr login --name ${{ needs.setup.outputs.acr_name }}
+        run: az acr login --name ${{ env.ACR_NAME }}
       
       - name: Run Trivy Vulnerability Scan
         uses: aquasecurity/trivy-action@master
         with:
           # Construct image name here (GitHub blocks outputs containing secrets)
-          image-ref: ${{ needs.setup.outputs.login_server }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.image_tag }}
+          image-ref: ${{ env.LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.image_tag }}
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -261,8 +268,21 @@ jobs:
           RG="${{ secrets.RESOURCE_GROUP_NAME }}"
           APP_NAME="${{ secrets.CONTAINER_APP_NAME }}"
           SHORT_SHA="${{ needs.setup.outputs.short_sha }}"
+          if [[ "$ENV" == "prod" ]]; then
+            ACR_NAME="${{ secrets.ACR_NAME_PROD }}"
+          else
+            ACR_NAME="${{ secrets.ACR_NAME_DEV }}"
+          fi
+          if [[ -z "$ACR_NAME" ]]; then
+            ACR_NAME="${{ secrets.ACR_NAME }}"
+          fi
+          if [[ -z "$ACR_NAME" ]]; then
+            echo "ACR_NAME is not set. Define repo secrets ACR_NAME_DEV/ACR_NAME_PROD or ACR_NAME." >&2
+            exit 1
+          fi
+          LOGIN_SERVER="${ACR_NAME}.azurecr.io"
           # Construct image name here instead of passing as output (GitHub blocks outputs containing secrets)
-          IMAGE="${{ needs.setup.outputs.login_server }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.image_tag }}"
+          IMAGE="${LOGIN_SERVER}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.image_tag }}"
           
           echo "📦 Deploying $IMAGE to $APP_NAME ($ENV)..."
           
