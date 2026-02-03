@@ -266,17 +266,25 @@ jobs:
         id: deploy
         run: |
           ENV="${{ needs.setup.outputs.environment }}"
-          RG="${{ secrets.RESOURCE_GROUP_NAME }}"
-          APP_NAME="${{ secrets.CONTAINER_APP_NAME }}"
+          
+          # Use repository variables (not secrets) for resource names
+          if [[ "$ENV" == "prod" ]]; then
+            RG="${{ vars.RESOURCE_GROUP_NAME_PROD }}"
+            APP_NAME="${{ vars.CONTAINER_APP_NAME_PROD }}"
+          else
+            RG="${{ vars.RESOURCE_GROUP_NAME_DEV }}"
+            APP_NAME="${{ vars.CONTAINER_APP_NAME_DEV }}"
+          fi
+          
           SHORT_SHA="${{ needs.setup.outputs.short_sha }}"
           
-          # DEBUG: Show what secrets we're using
+          # DEBUG: Show what we're using
           echo "=========================================="
-          echo "🔍 DEBUG: Environment Secrets"
+          echo "🔍 DEBUG: Deployment Configuration"
           echo "=========================================="
-          echo "ENV (expected: prod) = $ENV"
-          echo "RESOURCE_GROUP_NAME (expected: rg-aca-devops-demo-prod) = $RG"
-          echo "CONTAINER_APP_NAME (expected: ca-aca-devops-demo-prod) = $APP_NAME"
+          echo "ENV = $ENV"
+          echo "RESOURCE_GROUP_NAME = $RG"
+          echo "CONTAINER_APP_NAME = $APP_NAME"
           echo "=========================================="
           if [[ "$ENV" == "prod" ]]; then
             ACR_NAME="${{ secrets.ACR_NAME_PROD }}"
@@ -432,19 +440,16 @@ jobs:
           
           # For prod, also construct the green-labeled URL for smoke tests
           if [[ "$ENV" == "prod" ]]; then
-            # Use variables (not secrets) so output isn't masked
-            APP_NAME_VAR="${{ vars.CONTAINER_APP_NAME_PROD }}"
             ENV_ID=$(az containerapp show \
               --name $APP_NAME \
               --resource-group $RG \
               --query "properties.environmentId" -o tsv)
             APP_DOMAIN=$(az resource show --ids "$ENV_ID" --query "properties.defaultDomain" -o tsv)
-            GREEN_URL="https://${APP_NAME_VAR}---green.${APP_DOMAIN}"
+            GREEN_URL="https://${APP_NAME}---green.${APP_DOMAIN}"
             echo "🔍 DEBUG: Setting green_url=$GREEN_URL"
             echo "green_url=$GREEN_URL" >> $GITHUB_OUTPUT
           else
             # For dev, green_url is same as app_url
-            APP_NAME_VAR="${{ vars.CONTAINER_APP_NAME_DEV }}"
             FQDN=$(az containerapp show \
               --name $APP_NAME \
               --resource-group $RG \
@@ -672,8 +677,9 @@ jobs:
       - name: Switch Traffic to Green
         id: switch
         run: |
-          APP_NAME="${{ secrets.CONTAINER_APP_NAME }}"
-          RG="${{ secrets.RESOURCE_GROUP_NAME }}"
+          # Use repository variables for consistency
+          APP_NAME="${{ vars.CONTAINER_APP_NAME_PROD }}"
+          RG="${{ vars.RESOURCE_GROUP_NAME_PROD }}"
           
           echo "🔀 Switching 100% traffic to GREEN revision..."
           
@@ -711,7 +717,7 @@ jobs:
           echo "| 🔵 Blue (previous) | 0% |" >> $GITHUB_STEP_SUMMARY
           echo "| 🟢 Green (current) | 100% |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "To rollback, run: \`az containerapp ingress traffic set --name ${{ secrets.CONTAINER_APP_NAME }} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --label-weight blue=100 green=0\`" >> $GITHUB_STEP_SUMMARY
+          echo "To rollback, run: \`az containerapp ingress traffic set --name ${{ vars.CONTAINER_APP_NAME_PROD }} --resource-group ${{ vars.RESOURCE_GROUP_NAME_PROD }} --label-weight blue=100 green=0\`" >> $GITHUB_STEP_SUMMARY
 
   # ===========================================================================
   # Notification
