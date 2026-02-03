@@ -463,6 +463,7 @@ jobs:
     name: 💨 Post-Deploy Smoke Test
     runs-on: ubuntu-latest
     needs: [setup, deploy]
+    environment: ${{ needs.setup.outputs.environment }}
     outputs:
       status: ${{ steps.smoke.outputs.status }}
     
