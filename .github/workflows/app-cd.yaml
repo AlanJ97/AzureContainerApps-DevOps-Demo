@@ -438,9 +438,11 @@ jobs:
               --query "properties.environmentId" -o tsv)
             APP_DOMAIN=$(az resource show --ids "$ENV_ID" --query "properties.defaultDomain" -o tsv)
             GREEN_URL="https://${APP_NAME}---green.${APP_DOMAIN}"
+            echo "🔍 DEBUG: Setting green_url=$GREEN_URL"
             echo "green_url=$GREEN_URL" >> $GITHUB_OUTPUT
           else
             # For dev, green_url is same as app_url
+            echo "🔍 DEBUG: Setting green_url=https://$APP_URL (dev)"
             echo "green_url=https://$APP_URL" >> $GITHUB_OUTPUT
           fi
           
@@ -492,8 +494,18 @@ jobs:
           APP_URL="${{ needs.deploy.outputs.green_url }}"
           
           echo "=========================================="
-          echo "🚀 Testing: $APP_URL"
+          echo "� DEBUG: Smoke Test Inputs"
           echo "=========================================="
+          echo "Environment: $ENV"
+          echo "green_url from deploy output: $APP_URL"
+          echo "=========================================="
+          
+          if [[ -z "$APP_URL" ]]; then
+            echo "❌ ERROR: green_url is empty! Deploy job didn't set the output correctly."
+            exit 1
+          fi
+          
+          echo "🚀 Testing: $APP_URL"
           
           if [[ "$ENV" == "prod" ]]; then
             echo "⏳ Waiting 30s for green revision to be fully ready..."
