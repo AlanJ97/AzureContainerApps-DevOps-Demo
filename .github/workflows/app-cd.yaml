@@ -70,8 +70,14 @@ jobs:
           fi
           if [[ "$ENV" == "prod" ]]; then
             ACR_NAME="${{ vars.ACR_NAME_PROD }}"
+            if [[ -z "$ACR_NAME" ]]; then
+              ACR_NAME="${{ secrets.ACR_NAME_PROD }}"
+            fi
           else
             ACR_NAME="${{ vars.ACR_NAME_DEV }}"
+            if [[ -z "$ACR_NAME" ]]; then
+              ACR_NAME="${{ secrets.ACR_NAME_DEV }}"
+            fi
           fi
           if [[ -z "$ACR_NAME" ]]; then
             ACR_NAME="${{ secrets.ACR_NAME }}"
