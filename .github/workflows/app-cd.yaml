@@ -332,7 +332,8 @@ jobs:
                   --name $APP_NAME \
                   --resource-group $RG \
                   --label $label \
-                  --revision $revision && return 0
+                  --revision $revision \
+                  --yes && return 0
 
                 echo "  ⚠️ Label add failed, retrying in ${delay}s..."
                 sleep $delay
