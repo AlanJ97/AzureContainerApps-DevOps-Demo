@@ -268,6 +268,15 @@ jobs:
           RG="${{ secrets.RESOURCE_GROUP_NAME }}"
           APP_NAME="${{ secrets.CONTAINER_APP_NAME }}"
           SHORT_SHA="${{ needs.setup.outputs.short_sha }}"
+          
+          # DEBUG: Show what secrets we're using
+          echo "=========================================="
+          echo "🔍 DEBUG: Environment Secrets"
+          echo "=========================================="
+          echo "ENV (expected: prod) = $ENV"
+          echo "RESOURCE_GROUP_NAME (expected: rg-aca-devops-demo-prod) = $RG"
+          echo "CONTAINER_APP_NAME (expected: ca-aca-devops-demo-prod) = $APP_NAME"
+          echo "=========================================="
           if [[ "$ENV" == "prod" ]]; then
             ACR_NAME="${{ secrets.ACR_NAME_PROD }}"
           else
@@ -410,6 +419,14 @@ jobs:
             --resource-group $RG \
             --query "properties.configuration.ingress.fqdn" -o tsv)
           
+          # DEBUG: Show the app URL we got
+          echo "=========================================="
+          echo "🔍 DEBUG: Retrieved App URL"
+          echo "=========================================="
+          echo "APP_URL (expected: ca-aca-devops-demo-prod.agreeablepond-a38c9220.eastus2.azurecontainerapps.io) = $APP_URL"
+          echo "Full URL: https://$APP_URL"
+          echo "=========================================="
+          
           echo "app_url=https://$APP_URL" >> $GITHUB_OUTPUT
           echo "✅ Deployed to: https://$APP_URL"
       
@@ -458,6 +475,14 @@ jobs:
         id: smoke
         run: |
           ENV="${{ needs.setup.outputs.environment }}"
+          
+          # DEBUG: Show what we're testing
+          echo "=========================================="
+          echo "🔍 DEBUG: Smoke Test Configuration"
+          echo "=========================================="
+          echo "Environment: $ENV"
+          echo "Deploy job app_url output: ${{ needs.deploy.outputs.app_url }}"
+          echo "=========================================="
           APP_NAME="${{ secrets.CONTAINER_APP_NAME }}"
           RG="${{ secrets.RESOURCE_GROUP_NAME }}"
           
