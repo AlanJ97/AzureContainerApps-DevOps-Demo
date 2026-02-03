@@ -292,6 +292,7 @@
 |-------|------|
 | 12-Factor App | https://12factor.net/ |
 | Azure Well-Architected Framework | https://learn.microsoft.com/en-us/azure/well-architected/ |
+| Azure Container Apps (WAF Service Guide) | https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-container-apps |
 | DevOps at Microsoft | https://learn.microsoft.com/en-us/devops/what-is-devops |
 
 ---

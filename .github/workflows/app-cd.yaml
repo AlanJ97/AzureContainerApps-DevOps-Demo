@@ -53,6 +53,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       environment: ${{ steps.env.outputs.environment }}
+      acr_name: ${{ steps.env.outputs.acr_name }}
+      login_server: ${{ steps.env.outputs.login_server }}
       image_tag: ${{ steps.meta.outputs.image_tag }}
       short_sha: ${{ steps.meta.outputs.short_sha }}
     steps:
@@ -66,7 +68,21 @@ jobs:
           else
             ENV="dev"
           fi
+          if [[ "$ENV" == "prod" ]]; then
+            ACR_NAME="${{ vars.ACR_NAME_PROD }}"
+          else
+            ACR_NAME="${{ vars.ACR_NAME_DEV }}"
+          fi
+          if [[ -z "$ACR_NAME" ]]; then
+            ACR_NAME="${{ secrets.ACR_NAME }}"
+          fi
+          if [[ -z "$ACR_NAME" ]]; then
+            echo "ACR_NAME is not set. Define repo vars ACR_NAME_DEV/ACR_NAME_PROD or repo secret ACR_NAME." >&2
+            exit 1
+          fi
           echo "environment=$ENV" >> $GITHUB_OUTPUT
+          echo "acr_name=$ACR_NAME" >> $GITHUB_OUTPUT
+          echo "login_server=${ACR_NAME}.azurecr.io" >> $GITHUB_OUTPUT
       
       - name: Generate Image Metadata
         id: meta
@@ -107,12 +123,12 @@ jobs:
       # The Service Principal has Contributor role which includes AcrPush
       - name: Login to ACR
         run: |
-          az acr login --name ${{ secrets.ACR_NAME }}
+          az acr login --name ${{ needs.setup.outputs.acr_name }}
       
       - name: Set ACR Info
         id: acr
         run: |
-          echo "login_server=${{ secrets.ACR_NAME }}.azurecr.io" >> $GITHUB_OUTPUT
+          echo "login_server=${{ needs.setup.outputs.login_server }}" >> $GITHUB_OUTPUT
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -176,13 +192,13 @@ jobs:
             }
       
       - name: ACR Login
-        run: az acr login --name ${{ secrets.ACR_NAME }}
+        run: az acr login --name ${{ needs.setup.outputs.acr_name }}
       
       - name: Run Trivy Vulnerability Scan
         uses: aquasecurity/trivy-action@master
         with:
           # Construct image name here (GitHub blocks outputs containing secrets)
-          image-ref: ${{ secrets.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.image_tag }}
+          image-ref: ${{ needs.setup.outputs.login_server }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.image_tag }}
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -240,7 +256,7 @@ jobs:
           APP_NAME="${{ secrets.CONTAINER_APP_NAME }}"
           SHORT_SHA="${{ needs.setup.outputs.short_sha }}"
           # Construct image name here instead of passing as output (GitHub blocks outputs containing secrets)
-          IMAGE="${{ secrets.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.image_tag }}"
+          IMAGE="${{ needs.setup.outputs.login_server }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.image_tag }}"
           
           echo "📦 Deploying $IMAGE to $APP_NAME ($ENV)..."
           
