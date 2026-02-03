@@ -486,6 +486,17 @@ jobs:
           APP_NAME="${{ secrets.CONTAINER_APP_NAME }}"
           RG="${{ secrets.RESOURCE_GROUP_NAME }}"
           
+          # DEBUG: Show what Azure returns for these values
+          echo "=========================================="
+          echo "🔍 DEBUG: Querying Azure with secrets"
+          echo "=========================================="
+          echo "Querying Container App in Resource Group..."
+          ACTUAL_FQDN=$(az containerapp show --name $APP_NAME --resource-group $RG --query "properties.configuration.ingress.fqdn" -o tsv 2>&1 || echo "QUERY_FAILED")
+          echo "Actual FQDN from Azure: $ACTUAL_FQDN"
+          echo "Expected FQDN for prod: ca-aca-devops-demo-prod.agreeablepond-a38c9220.eastus2.azurecontainerapps.io"
+          echo "Expected FQDN for dev: ca-aca-devops-demo-dev.reddesert-7aa50a55.eastus2.azurecontainerapps.io"
+          echo "=========================================="
+          
           # Get the app URL directly from Azure
           if [[ "$ENV" == "prod" ]]; then
             # For prod, test the green-labeled URL (new revision, not yet live)
