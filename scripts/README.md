@@ -1,153 +1,98 @@
-# Scripts
+# Setup Scripts
 
-Utility scripts for project setup. Run in order.
+Utility scripts for Azure and GitHub configuration. Execute in order.
 
-## ⚠️ Important: Use Bash + `--body` Flag
-
-PowerShell pipes add UTF-8 BOM that corrupts secrets. All scripts use:
-```bash
-gh secret set NAME --body "$VALUE"  # ✅ Correct
-```
+> **⚠️ Important**: Use Bash and the `--body` flag with `gh secret set` to avoid UTF-8 BOM corruption that breaks Azure authentication.
 
 ---
 
-## 📋 Setup Order
+## 📋 Setup Workflow
 
-### Step 1: Create GitHub Repository (one-time)
-```bash
-# Create repo (already done)
-gh repo create AzureContainerApps-DevOps-Demo --public --source=. --push
-```
-
-### Step 2: Create Terraform State Storage (one-time)
+### 1. Create Terraform State Storage
 ```powershell
 .\scripts\azure-terraform-backend.ps1
 ```
-Creates:
-- Resource Group: `rg-terraform-state`
-- Storage Account: `stterraformacademo`
-- Containers: `tfstate-dev`, `tfstate-prod`
+Creates: `rg-terraform-state`, `stterraformacademo`, containers for dev/prod
 
-### Step 3: Register Azure Provider (one-time)
+### 2. Register Azure Provider
 ```bash
 az provider register --namespace Microsoft.App
 ```
 
-### Step 4: Create Service Principal
+### 3. Create Service Principal
 ```bash
 ./scripts/azure-service-principal.sh
 ```
-Creates SP with roles:
-- **Contributor** - Create/manage resources
-- **User Access Administrator** - Assign roles to managed identities
+Creates SP with **Contributor** + **User Access Administrator** roles
 
-Output: `scripts/.azure-secrets.json`
-
-### Step 5: Set GitHub Auth Secrets
+### 4. Set GitHub Secrets (Pre-Terraform)
 ```bash
 ./scripts/github-secrets.sh
 ```
-Sets secrets for **both** `dev` and `prod` environments:
-- `AZURE_CLIENT_ID`
-- `AZURE_CLIENT_SECRET`
-- `AZURE_SUBSCRIPTION_ID`
-- `AZURE_TENANT_ID`
+Sets Azure auth secrets for both `dev` and `prod` environments
 
-### Step 6: Deploy Infrastructure (via GitHub Actions)
+### 5. Deploy Infrastructure
 ```bash
-# Push to dev → triggers Terraform CD
-git push origin dev
-
-# Or manually trigger
-gh workflow run "Terraform CD" --ref dev -f environment=dev
+gh workflow run "Terraform CD" -f environment=dev
 ```
+Or push to `dev` branch to trigger automatically
 
-### Step 7: Set Post-Terraform Secrets
+### 6. Set GitHub Secrets (Post-Terraform)
 ```bash
-# For dev environment
 ./scripts/github-secrets-post-terraform.sh dev
-
-# For prod environment (after prod infra deployed)
 ./scripts/github-secrets-post-terraform.sh prod
 ```
-Sets environment-specific secrets:
-- `ACR_NAME`
-- `RESOURCE_GROUP_NAME`
-- `CONTAINER_APP_NAME`
+Sets ACR and resource names per environment
 
-### Step 8: Deploy Application (via GitHub Actions)
+### 7. Deploy Application
 ```bash
-# Push app changes → triggers App CD
-git push origin dev
-
-# Or manually trigger
-gh workflow run "App CD" --ref dev -f environment=dev
+gh workflow run "App CD" -f environment=dev
 ```
+Or push app changes to `dev` branch
 
 ---
 
-## 📁 Files
+## 📁 Script Files
 
 | File | Purpose |
-|------|---------|
-| `azure-terraform-backend.ps1` | Create Storage Account for TF state |
-| `azure-service-principal.sh` | Create SP with required roles |
-| `github-secrets.sh` | Set Azure auth secrets (both envs) |
-| `github-secrets-post-terraform.sh` | Set resource secrets per environment |
-| `.azure-secrets.json` | SP credentials (DO NOT COMMIT) |
+|------|---------|  
+| `azure-terraform-backend.ps1` | Creates Azure Storage for Terraform state |
+| `azure-service-principal.sh` | Creates Service Principal with required roles |
+| `github-secrets.sh` | Sets Azure authentication secrets |
+| `github-secrets-post-terraform.sh` | Sets resource-specific secrets after deployment |
+| `.azure-secrets.json` | SP credentials (⚠️ gitignored, do not commit) |
 
 ---
 
-## 🔐 Secrets Reference
+## 🔐 GitHub Secrets
 
-### Per Environment (dev, prod)
+**Set by `github-secrets.sh`** (both environments):
+- `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID`
 
-| Secret | Source | Purpose |
-|--------|--------|---------|
-| `AZURE_CLIENT_ID` | Service Principal | Azure authentication |
-| `AZURE_CLIENT_SECRET` | Service Principal | Azure authentication |
-| `AZURE_SUBSCRIPTION_ID` | Azure account | Azure authentication |
-| `AZURE_TENANT_ID` | Azure account | Azure authentication |
-| `ACR_NAME` | Terraform output | Container registry name |
-| `RESOURCE_GROUP_NAME` | Terraform output | Resource group for deployment |
-| `CONTAINER_APP_NAME` | Terraform output | Container app to update |
+**Set by `github-secrets-post-terraform.sh`** (per environment):
+- `ACR_NAME`, `RESOURCE_GROUP_NAME`, `CONTAINER_APP_NAME`
 
 ---
 
-## 🐛 Troubleshooting
+## 🐛 Common Issues
 
-### AADSTS900023: Invalid tenant identifier
-**Cause:** UTF-8 BOM in secret value
-**Solution:** Use `--body` flag, not pipe:
-```bash
-# ❌ Wrong
-echo "$value" | gh secret set NAME
+**AADSTS900023: Invalid tenant identifier**
+- Cause: UTF-8 BOM in secret
+- Fix: Use `gh secret set NAME --body "$value"` (not pipe)
 
-# ✅ Correct  
-gh secret set NAME --body "$value"
-```
+**MissingSubscriptionRegistration: Microsoft.App**
+- Fix: `az provider register --namespace Microsoft.App`
 
-### MissingSubscriptionRegistration: Microsoft.App
-**Cause:** Provider not registered
-**Solution:**
-```bash
-az provider register --namespace Microsoft.App
-```
+**AuthorizationFailed: roleAssignments/write**  
+- Cause: SP missing User Access Administrator role
+- Fix: Add role to SP:
+  ```bash
+  az role assignment create \
+    --assignee <SP_OBJECT_ID> \
+    --role "User Access Administrator" \
+    --scope /subscriptions/<SUB_ID>
+  ```
 
-### AuthorizationFailed: roleAssignments/write
-**Cause:** SP missing User Access Administrator role
-**Solution:**
-```bash
-az role assignment create \
-  --assignee <SP_OBJECT_ID> \
-  --role "User Access Administrator" \
-  --scope /subscriptions/<SUB_ID>
-```
-
-### Job output is empty (secret masking)
-**Cause:** GitHub masks outputs containing secrets
-**Solution:** Construct values in consuming job:
-```yaml
-# Instead of using needs.job.outputs.value
-IMAGE="${{ secrets.ACR_NAME }}.azurecr.io/app:tag"
-```
+**GitHub job output is empty**
+- Cause: GitHub masks outputs containing secrets
+- Fix: Construct values in consuming job instead of passing outputs
