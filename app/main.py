@@ -7,6 +7,7 @@ A professional but simple FastAPI application demonstrating:
 - Pydantic models for request/response validation
 - Graceful shutdown handling (SIGTERM)
 - OpenAPI documentation
+- OpenTelemetry observability (traces, metrics, logs)
 """
 import signal
 import socket
@@ -17,6 +18,8 @@ from typing import Annotated
 
 from fastapi import FastAPI, Path, Query, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from opentelemetry import trace
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 from app.config import get_settings
 from app.models import (
@@ -27,6 +30,7 @@ from app.models import (
     ItemResponse,
     ErrorResponse,
 )
+from app.telemetry import configure_telemetry, create_custom_metrics
 
 
 # In-memory storage for demo purposes
@@ -35,6 +39,11 @@ item_id_counter = 0
 
 # Graceful shutdown flag
 shutdown_event = False
+
+# OpenTelemetry instrumentation
+tracer = None
+meter = None
+custom_metrics = None
 
 
 def handle_sigterm(signum, frame):
@@ -54,9 +63,23 @@ async def lifespan(app: FastAPI):
     """
     Lifespan context manager for startup and shutdown events.
     """
+    global tracer, meter, custom_metrics
+    
     # Startup
-    print(f"🚀 Starting {get_settings().app_name} v{get_settings().app_version}")
-    print(f"📍 Environment: {get_settings().environment}")
+    settings = get_settings()
+    print(f"🚀 Starting {settings.app_name} v{settings.app_version}")
+    print(f"📍 Environment: {settings.environment}")
+    
+    # Configure OpenTelemetry
+    tracer, meter = configure_telemetry(
+        service_name=settings.app_name,
+        service_version=settings.app_version,
+        service_instance_id=socket.gethostname(),
+    )
+    
+    # Create custom metrics
+    custom_metrics = create_custom_metrics(meter)
+    print("📊 OpenTelemetry instrumentation configured")
     
     # Register SIGTERM handler for graceful shutdown
     # Note: signal.signal() only works in the main thread, so we catch
@@ -85,6 +108,10 @@ app = FastAPI(
     openapi_url="/openapi.json",
     lifespan=lifespan,
 )
+
+# Auto-instrument FastAPI with OpenTelemetry
+# This automatically creates spans for all HTTP requests
+FastAPIInstrumentor.instrument_app(app)
 
 # CORS middleware configuration
 app.add_middleware(
@@ -236,6 +263,7 @@ async def create_item(item: ItemCreate) -> ItemResponse:
     - Request body validation with Pydantic
     - POST request handling
     - Auto-generated ID
+    - Custom OpenTelemetry metrics
     """
     global item_id_counter
     item_id_counter += 1
@@ -248,6 +276,19 @@ async def create_item(item: ItemCreate) -> ItemResponse:
         "quantity": item.quantity,
     }
     items_db[item_id_counter] = item_data
+    
+    # Custom metrics: Record item creation
+    if custom_metrics:
+        custom_metrics["items_created"].add(1, {"item_name": item.name})
+        custom_metrics["item_name_length"].record(len(item.name))
+        custom_metrics["items_in_db"].add(1)
+    
+    # Custom span attributes
+    current_span = trace.get_current_span()
+    if current_span:
+        current_span.set_attribute("item.id", item_id_counter)
+        current_span.set_attribute("item.name", item.name)
+        current_span.set_attribute("item.price", float(item.price))
     
     return ItemResponse(
         **item_data,
@@ -334,6 +375,7 @@ async def delete_item(
     Demonstrates:
     - DELETE request handling
     - 204 No Content response
+    - Custom OpenTelemetry metrics
     """
     if item_id not in items_db:
         raise HTTPException(
@@ -341,7 +383,21 @@ async def delete_item(
             detail=f"Item with ID {item_id} not found"
         )
     
+    # Get item name before deletion for metrics
+    item_name = items_db[item_id].get("name", "unknown")
+    
     del items_db[item_id]
+    
+    # Custom metrics: Record item deletion
+    if custom_metrics:
+        custom_metrics["items_deleted"].add(1, {"item_name": item_name})
+        custom_metrics["items_in_db"].add(-1)
+    
+    # Custom span attribute
+    current_span = trace.get_current_span()
+    if current_span:
+        current_span.set_attribute("item.id", item_id)
+        current_span.set_attribute("item.deleted", True)
 
 
 # =============================================================================
