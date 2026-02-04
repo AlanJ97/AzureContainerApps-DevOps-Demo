@@ -1,9 +1,17 @@
-# Dependabot configuration for automated dependency updates
-# Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuring-dependabot-version-updates
+# =============================================================================
+# Dependabot Configuration - Automated Dependency Updates
+# =============================================================================
+# Purpose: Keep dependencies up-to-date automatically
+# Ecosystems: Python (pip), Terraform, GitHub Actions, Docker
+# Schedule: Weekly on Mondays
+# Documentation: https://docs.github.com/en/code-security/dependabot
+# =============================================================================
 
 version: 2
 updates:
-  # Python dependencies (pip)
+  # ===========================================================================
+  # Python Dependencies (pip)
+  # ===========================================================================
   - package-ecosystem: "pip"
     directory: "/app"
     schedule:
@@ -16,7 +24,9 @@ updates:
       - "python"
     open-pull-requests-limit: 5
 
-  # Terraform providers and modules
+  # ===========================================================================
+  # Terraform Providers and Modules
+  # ===========================================================================
   - package-ecosystem: "terraform"
     directory: "/terraform/modules/aca_stack"
     schedule:
@@ -29,7 +39,9 @@ updates:
       - "terraform"
     open-pull-requests-limit: 5
 
-  # GitHub Actions
+  # ===========================================================================
+  # GitHub Actions Workflows
+  # ===========================================================================
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -42,7 +54,9 @@ updates:
       - "github-actions"
     open-pull-requests-limit: 5
 
-  # Docker base images
+  # ===========================================================================
+  # Docker Base Images
+  # ===========================================================================
   - package-ecosystem: "docker"
     directory: "/docker"
     schedule:

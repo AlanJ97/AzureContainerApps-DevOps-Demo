@@ -1,7 +1,19 @@
-# CodeQL Security Analysis Workflow
-# Docs: https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning
+# =============================================================================
+# CodeQL Security Analysis
+# =============================================================================
+# Triggers: Push to main/dev, PRs, weekly schedule
+# Purpose: Automated security vulnerability scanning for Python code
+# Features:
+#   - Extended security queries
+#   - Results uploaded to Security tab
+#   - Weekly scheduled scans
+# =============================================================================
 
 name: "CodeQL Security Scan"
+
+# =============================================================================
+# Workflow Triggers
+# =============================================================================
 
 on:
   push:
@@ -19,12 +31,19 @@ on:
     - cron: '0 9 * * 1'
   workflow_dispatch:
 
+# =============================================================================
+# Permissions
+# =============================================================================
+
 permissions:
   contents: read
   security-events: write
   actions: read
 
 jobs:
+  # ===========================================================================
+  # CodeQL Analysis
+  # ===========================================================================
   analyze:
     name: Analyze Python Code
     runs-on: ubuntu-latest
