@@ -58,9 +58,9 @@
 ### 📊 Observability
 | # | Task | Cost | Status |
 |---|------|------|--------|
-| 30 | **Application Insights** APM (already in module) | FREE tier (5GB/mo) | ⬜ Enhance |
-| 31 | **Custom Azure Dashboard** | FREE | ⬜ |
-| 32 | **Alerting rules** (email on errors) | FREE | ⬜ |
+| 30 | **Application Insights** with OpenTelemetry instrumentation | FREE tier (5GB/mo) | ✅ |
+| 31 | **Custom Azure Dashboard** with metrics visualization | FREE | ✅ |
+| 32 | **Alerting rules** (CPU, memory, errors, email notifications) | FREE | ✅ |
 | 33 | ~~Grafana Cloud~~ | 💰 PAID | ❌ Skip |
 | 34 | ~~PagerDuty/OpsGenie~~ | 💰 PAID | ❌ Skip |
 
