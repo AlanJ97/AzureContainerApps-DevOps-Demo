@@ -158,3 +158,28 @@ output "application_insights_instrumentation_key" {
   value       = var.enable_key_vault ? azurerm_application_insights.main[0].instrumentation_key : null
   sensitive   = true
 }
+
+# =============================================================================
+# Monitoring & Alerting
+# =============================================================================
+
+output "dashboard_id" {
+  description = "ID of the Azure Portal dashboard"
+  value       = var.enable_monitoring_dashboard ? azurerm_portal_dashboard.monitoring[0].id : null
+}
+
+output "action_group_id" {
+  description = "ID of the monitoring action group"
+  value       = var.enable_alerts && length(var.alert_email_addresses) > 0 ? azurerm_monitor_action_group.email[0].id : null
+}
+
+output "alert_rules" {
+  description = "Map of created alert rules"
+  value = var.enable_alerts && length(var.alert_email_addresses) > 0 ? {
+    cpu_usage        = azurerm_monitor_metric_alert.cpu_usage[0].id
+    memory_usage     = azurerm_monitor_metric_alert.memory_usage[0].id
+    http_errors      = azurerm_monitor_metric_alert.http_errors[0].id
+    container_restart = azurerm_monitor_metric_alert.container_restart[0].id
+    app_errors       = var.enable_key_vault ? azurerm_monitor_scheduled_query_rules_alert_v2.app_errors[0].id : null
+  } : {}
+}
