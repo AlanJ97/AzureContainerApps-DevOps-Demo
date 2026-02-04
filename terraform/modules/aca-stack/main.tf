@@ -104,7 +104,7 @@ resource "azurerm_key_vault" "main" {
   sku_name                    = "standard"
   soft_delete_retention_days  = 7
   purge_protection_enabled    = false # Set to true for production
-  enable_rbac_authorization   = false # Using access policies
+  rbac_authorization_enabled  = false # Using access policies
 
   # Access policy for Terraform (current client) - to manage secrets
   access_policy {
@@ -152,7 +152,7 @@ resource "azurerm_key_vault_secret" "appinsights_connection_string" {
   count = var.enable_key_vault ? 1 : 0
 
   name         = "appinsights-connection-string"
-  value        = azurerm_application_insights.main[0].connection_string
+  value        = azurerm_application_insights.main.connection_string
   key_vault_id = azurerm_key_vault.main[0].id
 
   depends_on = [azurerm_key_vault.main]
