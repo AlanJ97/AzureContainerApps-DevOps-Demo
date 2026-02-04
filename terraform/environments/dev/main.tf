@@ -39,4 +39,12 @@ module "aca_stack" {
     { name = "APP_NAME", value = var.project_name },
     { name = "DEBUG", value = "true" }
   ]
+
+  # Monitoring & Alerting
+  enable_monitoring_dashboard = true
+  enable_alerts              = true
+  alert_email_addresses      = var.alert_email_addresses
+  alert_cpu_threshold        = 80
+  alert_memory_threshold     = 80
+  alert_http_error_threshold = 10
 }

@@ -36,3 +36,18 @@ output "log_analytics_workspace_name" {
   description = "Log Analytics workspace for monitoring"
   value       = module.aca_stack.log_analytics_workspace_name
 }
+
+output "dashboard_id" {
+  description = "ID of the monitoring dashboard"
+  value       = module.aca_stack.dashboard_id
+}
+
+output "action_group_id" {
+  description = "ID of the alert action group"
+  value       = module.aca_stack.action_group_id
+}
+
+output "alert_rules" {
+  description = "Map of configured alert rules"
+  value       = module.aca_stack.alert_rules
+}
