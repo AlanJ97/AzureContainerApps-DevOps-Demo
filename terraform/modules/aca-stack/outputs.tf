@@ -139,23 +139,23 @@ output "key_vault_uri" {
 }
 
 # =============================================================================
-# Application Insights (when enabled)
+# Application Insights
 # =============================================================================
 
 output "application_insights_id" {
   description = "ID of Application Insights"
-  value       = var.enable_key_vault ? azurerm_application_insights.main[0].id : null
+  value       = azurerm_application_insights.main.id
 }
 
 output "application_insights_connection_string" {
   description = "Connection string for Application Insights (sensitive)"
-  value       = var.enable_key_vault ? azurerm_application_insights.main[0].connection_string : null
+  value       = azurerm_application_insights.main.connection_string
   sensitive   = true
 }
 
 output "application_insights_instrumentation_key" {
   description = "Instrumentation key for Application Insights (sensitive)"
-  value       = var.enable_key_vault ? azurerm_application_insights.main[0].instrumentation_key : null
+  value       = azurerm_application_insights.main.instrumentation_key
   sensitive   = true
 }
 

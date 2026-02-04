@@ -156,12 +156,12 @@ resource "azurerm_monitor_metric_alert" "container_restart" {
 
 # Alert: Application Errors (from logs)
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "app_errors" {
-  count = var.enable_alerts && var.enable_key_vault && length(var.alert_email_addresses) > 0 ? 1 : 0
+  count = var.enable_alerts && length(var.alert_email_addresses) > 0 ? 1 : 0
 
   name                = "alert-${local.resource_prefix}-app-errors"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
-  scopes              = [azurerm_application_insights.main[0].id]
+  scopes              = [azurerm_application_insights.main.id]
   description         = "Alert when application errors are detected in logs"
   severity            = 2
   enabled             = true
