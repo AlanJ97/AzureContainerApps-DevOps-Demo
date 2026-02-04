@@ -216,8 +216,8 @@ resource "azurerm_portal_dashboard" "monitoring" {
     resource_group_name    = azurerm_resource_group.main.name
     container_app_id       = azurerm_container_app.main.id
     container_app_name     = azurerm_container_app.main.name
-    app_insights_id        = var.enable_key_vault ? azurerm_application_insights.main[0].id : ""
-    app_insights_name      = var.enable_key_vault ? azurerm_application_insights.main[0].name : ""
+    app_insights_id        = azurerm_application_insights.main.id
+    app_insights_name      = azurerm_application_insights.main.name
     log_analytics_id       = azurerm_log_analytics_workspace.main.id
     environment_name       = var.environment
     project_name           = var.project_name
