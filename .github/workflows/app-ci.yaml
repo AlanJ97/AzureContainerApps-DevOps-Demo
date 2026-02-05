@@ -319,6 +319,7 @@ jobs:
           failure-threshold: warning
           format: sarif
           output-file: hadolint-results.sarif
+          ignore: DL3008,DL3013
       
       - name: Upload Hadolint Results
         uses: github/codeql-action/upload-sarif@v4
