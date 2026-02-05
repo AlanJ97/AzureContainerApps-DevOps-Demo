@@ -12,18 +12,20 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /build
 
-# Install build dependencies with pinned versions (Hadolint DL3008)
+# Install build dependencies (gcc is build-time only, not in final image)
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc=4:11.2.0-1ubuntu1 \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
 # Create virtual environment
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install Python dependencies with pinned pip version (Hadolint DL3013)
+# Install Python dependencies (pinned versions in requirements.txt)
 COPY requirements.txt .
-RUN pip install --no-cache-dir pip==24.0 && \
+# hadolint ignore=DL3013 - pip upgrade needed, actual deps pinned in requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # -----------------------------------------------------------------------------
