@@ -233,8 +233,17 @@ async def root() -> WelcomeResponse:
     """
     Root endpoint with welcome message.
     """
+    # Environment-specific welcome messages
+    env = settings.environment.lower()
+    if env == "dev":
+        message = "Hello, I am the dev app! 👨‍💻"
+    elif env == "prod":
+        message = "Hello, I am the prod app! 🚀"
+    else:
+        message = f"Welcome to {settings.app_name}! 🌐"
+    
     return WelcomeResponse(
-        message=f"Welcome to {settings.app_name}! 🚀",
+        message=message,
         docs_url="/docs"
     )
 
