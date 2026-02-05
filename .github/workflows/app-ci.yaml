@@ -286,13 +286,13 @@ jobs:
       
       - name: SonarQube Scan
         # Only run if SONAR_TOKEN is configured
-        if: ${{ secrets.SONAR_TOKEN != '' }}
+        if: secrets.SONAR_TOKEN != ''
         uses: SonarSource/sonarqube-scan-action@v7
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       
       - name: SonarQube Summary
-        if: ${{ secrets.SONAR_TOKEN != '' }}
+        if: secrets.SONAR_TOKEN != ''
         run: |
           echo "## 🔬 SonarQube Cloud Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -301,7 +301,7 @@ jobs:
           echo "📊 [View Results](https://sonarcloud.io/project/overview?id=AlanJ97_AzureContainerApps-DevOps-Demo)" >> $GITHUB_STEP_SUMMARY
       
       - name: SonarQube Skipped
-        if: ${{ secrets.SONAR_TOKEN == '' }}
+        if: secrets.SONAR_TOKEN == ''
         run: |
           echo "## 🔬 SonarQube Cloud Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
