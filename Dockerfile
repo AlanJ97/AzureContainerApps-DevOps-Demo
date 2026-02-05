@@ -23,8 +23,8 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Install Python dependencies (pinned versions in requirements.txt)
-# hadolint ignore=DL3013
 COPY requirements.txt .
+# hadolint ignore=DL3013 - pip upgrade needed, actual deps pinned in requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
