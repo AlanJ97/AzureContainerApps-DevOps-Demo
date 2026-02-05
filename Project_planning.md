@@ -50,17 +50,17 @@
 ### 🚀 Deployment Strategy
 | # | Task | Cost | Status |
 |---|------|------|--------|
-| 27 | **Manual approval gate** for prod | FREE (GitHub Environments) | ⬜ |
-| 28 | **Blue-green deployment** with traffic splitting | FREE | ⬜ |
+| 27 | **Manual approval gate** for prod | FREE (GitHub Environments) | ✅ |
+| 28 | **Blue-green deployment** with traffic splitting | FREE | ✅ |
 | 29 | **Automated rollback** on health check failure | FREE | ⬜ |
 | 38 | **Branch protection rules** on `main` (require PR, status checks) | FREE | ⬜ End of project |
 
 ### 📊 Observability
 | # | Task | Cost | Status |
 |---|------|------|--------|
-| 30 | **Application Insights** APM (already in module) | FREE tier (5GB/mo) | ⬜ Enhance |
-| 31 | **Custom Azure Dashboard** | FREE | ⬜ |
-| 32 | **Alerting rules** (email on errors) | FREE | ⬜ |
+| 30 | **Application Insights** with OpenTelemetry instrumentation | FREE tier (5GB/mo) | ✅ |
+| 31 | **Custom Azure Dashboard** with metrics visualization | FREE | ✅ |
+| 32 | **Alerting rules** (CPU, memory, errors, email notifications) | FREE | ✅ |
 | 33 | ~~Grafana Cloud~~ | 💰 PAID | ❌ Skip |
 | 34 | ~~PagerDuty/OpsGenie~~ | 💰 PAID | ❌ Skip |
 

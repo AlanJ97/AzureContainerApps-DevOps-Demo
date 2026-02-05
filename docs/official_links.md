@@ -1,6 +1,6 @@
-# Official Documentation Links
+# Documentation Reference
 
-> Reference documentation for Azure Container Apps DevOps project.
+Curated links to official documentation for this Azure Container Apps DevOps project.
 
 ---
 
@@ -21,61 +21,30 @@
 
 ---
 
-## �🔭 Observability & Monitoring
+## 📊 Observability & Monitoring
 
 | Topic | Link |
 |-------|------|
+| **Azure Monitor Alerts** | https://learn.microsoft.com/en-us/azure/container-apps/alerts |
+| **Azure Monitor Metrics** | https://learn.microsoft.com/en-us/azure/container-apps/metrics |
 | Observability Overview | https://learn.microsoft.com/en-us/azure/container-apps/observability |
 | Application Logging | https://learn.microsoft.com/en-us/azure/container-apps/logging |
-| Log Storage Options | https://learn.microsoft.com/en-us/azure/container-apps/log-options |
-| Log Streaming (Real-time) | https://learn.microsoft.com/en-us/azure/container-apps/log-streaming |
-| Grafana Dashboards | https://learn.microsoft.com/en-us/azure/container-apps/grafana-dashboards |
-| Aspire Dashboard (OTel) | https://learn.microsoft.com/en-us/azure/container-apps/aspire-dashboard |
-| Azure Monitor Metrics | https://learn.microsoft.com/en-us/azure/container-apps/metrics |
-| Azure Monitor Alerts | https://learn.microsoft.com/en-us/azure/container-apps/alerts |
+| Log Streaming | https://learn.microsoft.com/en-us/azure/container-apps/log-streaming |
 
 ---
 
-## 🤖 Azure SRE Agent (AI-Powered Troubleshooting)
+## 🌐 Azure Container Apps (Core)
 
 | Topic | Link |
 |-------|------|
-| SRE Agent Overview | https://learn.microsoft.com/en-us/azure/sre-agent/overview |
-| SRE Agent Usage | https://learn.microsoft.com/en-us/azure/sre-agent/usage |
-| Troubleshoot Container Apps | https://learn.microsoft.com/en-us/azure/sre-agent/troubleshoot-azure-container-apps |
-
----
-
-## 🌐 Networking & Ingress
-
-| Topic | Link |
-|-------|------|
-| **Ingress Overview** | https://learn.microsoft.com/en-us/azure/container-apps/ingress-overview |
-| Ingress Environment Config | https://learn.microsoft.com/en-us/azure/container-apps/ingress-environment-configuration |
-| Configure Ingress (How-to) | https://learn.microsoft.com/en-us/azure/container-apps/ingress-how-to |
-| **Blue-Green Deployment** | https://learn.microsoft.com/en-us/azure/container-apps/blue-green-deployment |
-| **Traffic Splitting** | https://learn.microsoft.com/en-us/azure/container-apps/traffic-splitting |
-| Virtual Network Configuration | https://learn.microsoft.com/en-us/azure/container-apps/custom-virtual-networks |
-| VNet Custom Setup | https://learn.microsoft.com/en-us/azure/container-apps/vnet-custom |
-
----
-
-## 🐳 Azure Container Apps (Core Concepts)
-
-| Topic | Link |
-|-------|------|
-| ACA Overview | https://learn.microsoft.com/en-us/azure/container-apps/overview |
+| **ACA Overview** | https://learn.microsoft.com/en-us/azure/container-apps/overview |
 | **Compare Container Options** | https://learn.microsoft.com/en-us/azure/container-apps/compare-options |
-| **Plan Types** (Consumption vs Dedicated) | https://learn.microsoft.com/en-us/azure/container-apps/plans |
 | **Environments** | https://learn.microsoft.com/en-us/azure/container-apps/environment |
-| **Revisions** (Update & Deploy) | https://learn.microsoft.com/en-us/azure/container-apps/revisions |
-| **Application Lifecycle** | https://learn.microsoft.com/en-us/azure/container-apps/application-lifecycle-management |
-| **Microservices** | https://learn.microsoft.com/en-us/azure/container-apps/microservices |
-| Quickstart | https://learn.microsoft.com/en-us/azure/container-apps/quickstart-portal |
+| **Revisions** | https://learn.microsoft.com/en-us/azure/container-apps/revisions |
+| **Plans** (Consumption vs Dedicated) | https://learn.microsoft.com/en-us/azure/container-apps/plans |
 | Health Probes | https://learn.microsoft.com/en-us/azure/container-apps/health-probes |
 | Scaling | https://learn.microsoft.com/en-us/azure/container-apps/scale-app |
-| Environment Variables | https://learn.microsoft.com/en-us/azure/container-apps/environment-variables |
-| Secrets | https://learn.microsoft.com/en-us/azure/container-apps/manage-secrets |
+| Secrets Management | https://learn.microsoft.com/en-us/azure/container-apps/manage-secrets |
 
 ---
 
@@ -138,18 +107,7 @@
 
 ---
 
-## 🏗️ Terraform - Language & Modules
-
-| Topic | Link |
-|-------|------|
-| **Module Structure** | https://developer.hashicorp.com/terraform/language/modules/develop/structure |
-| **Module Composition** | https://developer.hashicorp.com/terraform/language/modules/develop/composition |
-| **Providers in Modules** | https://developer.hashicorp.com/terraform/language/modules/develop/providers |
-| **Sensitive Data Management** | https://developer.hashicorp.com/terraform/language/manage-sensitive-data
-
----
-
-## 🔄 GitHub Actions & CI/CD
+## 🔄 GitHub Actions
 
 ### Core Documentation
 
@@ -206,41 +164,15 @@
 
 ---
 
-## 🔒 Security Scanning Tools
+## 🔒 Security & Scanning
 
-| Tool | Link |
-|------|------|
-| Trivy (Image Scanner) | https://aquasecurity.github.io/trivy/ |
+| Tool/Topic | Link |
+|------------|------|
+| **Security Overview** | https://learn.microsoft.com/en-us/azure/container-apps/security |
+| Trivy (Container Scanner) | https://aquasecurity.github.io/trivy/ |
 | Bandit (Python SAST) | https://bandit.readthedocs.io/ |
-| Checkov (IaC Scanner) | https://www.checkov.io/1.Welcome/Quick%20Start.html |
-| Flake8 (Python Linter) | https://flake8.pycqa.org/ |
-
----
-
-## 🛡️ GitHub Security Features
-
-### Dependabot (Dependency Scanning)
-
-| Topic | Link |
-|-------|------|
-| **Dependabot Quickstart Guide** | https://docs.github.com/en/code-security/tutorials/secure-your-dependencies/dependabot-quickstart-guide |
-| **Configuring Dependabot Version Updates** | https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuring-dependabot-version-updates |
-| Viewing and Updating Dependabot Alerts | https://docs.github.com/en/code-security/how-tos/manage-security-alerts/manage-dependabot-alerts/viewing-and-updating-dependabot-alerts |
-| Troubleshooting Dependabot Errors | https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/troubleshoot-dependency-security/troubleshooting-dependabot-errors |
-| Troubleshooting Vulnerable Dependencies | https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/troubleshoot-dependency-security/troubleshooting-the-detection-of-vulnerable-dependencies |
-| Configuring Dependabot Alerts (Org) | https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/configuring-dependabot-alerts |
-| Dependabot for Starters (Community) | https://opsatscale.com/getting-started/GitHub-dependabot-for-starters/ |
-
-### CodeQL (Code Security Scanning)
-
-| Topic | Link |
-|-------|------|
-| **About Code Scanning with CodeQL** | https://docs.github.com/en/code-security/concepts/code-scanning/codeql/about-code-scanning-with-codeql |
-| **Configuring Default Setup** | https://docs.github.com/en/code-security/how-tos/scan-code-for-vulnerabilities/configure-code-scanning/configuring-default-setup-for-code-scanning |
-| **Configuring Advanced Setup** | https://docs.github.com/en/code-security/how-tos/scan-code-for-vulnerabilities/configure-code-scanning/configuring-advanced-setup-for-code-scanning |
-| CodeQL Action (GitHub) | https://github.com/github/codeql-action/ |
-| Using Code Scanning with CI | https://docs.github.com/en/code-security/how-tos/scan-code-for-vulnerabilities/integrate-with-existing-tools/using-code-scanning-with-your-existing-ci-system |
-| About Code Scanning Alerts | https://docs.github.com/en/code-security/concepts/code-scanning/about-code-scanning-alerts |
+| Checkov (IaC Scanner) | https://www.checkov.io/ |
+| **CodeQL** | https://docs.github.com/en/code-security/how-tos/scan-code-for-vulnerabilities/configure-code-scanning/configuring-default-setup-for-code-scanning |
 
 ---
 ## 🧪 Testing & Coverage

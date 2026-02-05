@@ -182,3 +182,43 @@ variable "liveness_probe_path" {
   type        = string
   default     = "/health/live"
 }
+
+# ================================
+# Monitoring & Alerting Configuration
+# ================================
+
+variable "enable_monitoring_dashboard" {
+  description = "Enable Azure Portal dashboard for monitoring"
+  type        = bool
+  default     = true
+}
+
+variable "enable_alerts" {
+  description = "Enable monitoring alerts"
+  type        = bool
+  default     = true
+}
+
+variable "alert_email_addresses" {
+  description = "Email addresses to receive alerts"
+  type        = list(string)
+  default     = []
+}
+
+variable "alert_cpu_threshold" {
+  description = "CPU threshold percentage for alerts"
+  type        = number
+  default     = 80
+}
+
+variable "alert_memory_threshold" {
+  description = "Memory threshold percentage for alerts"
+  type        = number
+  default     = 80
+}
+
+variable "alert_http_error_threshold" {
+  description = "HTTP 5xx error count threshold per minute"
+  type        = number
+  default     = 10
+}

@@ -28,6 +28,8 @@ terraform/
 
 The `aca-stack` module creates a complete Azure Container Apps infrastructure:
 
+### Core Resources
+
 | Resource | Description |
 |----------|-------------|
 | Resource Group | Container for all resources |
@@ -38,15 +40,25 @@ The `aca-stack` module creates a complete Azure Container Apps infrastructure:
 | Container App Environment | Managed environment for apps |
 | Container App | The application deployment |
 
+### Monitoring Resources
+
+| Resource | Description |
+|----------|-------------|
+| Application Insights | APM with OpenTelemetry integration |
+| Portal Dashboard | 6 metric tiles (HTTP, CPU, Memory, Replicas) |
+| Action Group | Email notification channel |
+| Metric Alerts | CPU, Memory, HTTP errors, Container restarts |
+| Log Alert | Application exceptions and errors |
+
 ## 🔧 Environment Differences
 
 | Setting | Dev | Prod |
 |---------|-----|------|
 | ACR SKU | Basic | Standard |
 | Log Retention | 30 days | 90 days |
-| Min Replicas | 0 (scale to zero) | 2 (always on) |
+| Min Replicas | 0 | 2 |
 | Max Replicas | 2 | 10 |
-| Revision Mode | Single | Multiple (blue-green) |
+| Revision Mode | Single | Multiple |
 | CPU | 0.25 | 0.5 |
 | Memory | 0.5Gi | 1Gi |
 
@@ -95,14 +107,22 @@ terraform apply
 
 ## 📤 Outputs
 
-After deployment, these values are available:
+After deployment, access these values:
 
-| Output | Description |
-|--------|-------------|
-| `container_app_url` | HTTPS URL of the deployed app |
-| `acr_login_server` | ACR server for docker push |
-| `acr_name` | ACR name for CI/CD |
-| `managed_identity_client_id` | Identity for OIDC auth |
+### Application
+- `container_app_url` - HTTPS URL of the deployed app
+- `container_app_name` - Container App resource name
+
+### Registry
+- `acr_login_server` - ACR server for docker push
+- `acr_name` - ACR name for CI/CD
+
+### Monitoring
+- `application_insights_id` - App Insights resource ID
+- `dashboard_id` - Portal dashboard resource ID
+
+### Authentication  
+- `managed_identity_client_id` - Identity for OIDC auth
 
 ## 🔐 State Management
 
@@ -141,15 +161,24 @@ For GitHub Actions with OIDC authentication:
 Edit `terraform.tfvars` in each environment:
 
 ```hcl
-project_name = "my-app"
-location     = "eastus2"
+# Basic Configuration
+project_name    = "my-app"
+location        = "eastus2"
 container_image = "myacr.azurecr.io/myapp:v1.0.0"
+
+# Monitoring (optional)
+enable_key_vault          = true
+alert_email_addresses     = ["ops@company.com"]
+alert_cpu_threshold       = 80
+alert_memory_threshold    = 80
+enable_monitoring_dashboard = true
 ```
 
 ## ⚠️ Important Notes
 
-- **Zone Redundancy**: Requires VNet integration (infrastructure_subnet_id). Not included in this basic setup for simplicity. Add VNet resources to enable.
-- **ACR Admin**: Disabled by design; use managed identity instead
-- **Scaling**: Dev scales to zero; prod maintains minimum replicas
-- **Revisions**: Prod uses Multiple mode for blue-green deployments
-- **State Storage**: Configure remote backend before production use
+- **State Storage**: Configure remote backend for production (see State Management section)
+- **ACR Authentication**: Uses managed identity (admin user disabled)
+- **Scaling**: Dev can scale to zero; prod maintains minimum replicas  
+- **Monitoring**: Application Insights and dashboard are always created
+- **Key Vault**: Optional; if disabled, App Insights connection string passed directly
+- **Alerts**: Configure `alert_email_addresses` to receive notifications

@@ -11,8 +11,8 @@
 
 | Environment | URL | Status |
 |-------------|-----|--------|
-| **Dev** | [ca-aca-devops-demo-dev.agreeableplant-020e5c41.eastus2.azurecontainerapps.io](https://ca-aca-devops-demo-dev.agreeableplant-020e5c41.eastus2.azurecontainerapps.io) | ✅ Live |
-| **Prod** | [ca-aca-devops-demo-prod.greenbay-ba347684.eastus2.azurecontainerapps.io](https://ca-aca-devops-demo-prod.greenbay-ba347684.eastus2.azurecontainerapps.io) | ✅ Live |
+| **Dev** | [ca-aca-devops-demo-dev.nicesand-743f89bd.eastus2.azurecontainerapps.io](https://ca-aca-devops-demo-dev.nicesand-743f89bd.eastus2.azurecontainerapps.io) | ✅ Live |
+| **Prod** | [ca-aca-devops-demo-prod.greenrock-fa9a4c07.eastus2.azurecontainerapps.io](https://ca-aca-devops-demo-prod.greenrock-fa9a4c07.eastus2.azurecontainerapps.io) | ✅ Live |
 
 ## 📋 Table of Contents
 
@@ -20,6 +20,7 @@
 - [Tech Stack](#-tech-stack)
 - [Project Structure](#-project-structure)
 - [CI/CD Pipeline](#-cicd-pipeline)
+- [Observability](#-observability)
 - [Local Development](#-local-development)
 - [Deployment](#-deployment)
 - [API Endpoints](#-api-endpoints)
@@ -81,8 +82,11 @@ flowchart TB
 | **Resource Group** | Resource container | `rg-aca-devops-demo-dev` | `rg-aca-devops-demo-prod` |
 | **Container Registry** | Docker image storage | Basic SKU | Standard SKU |
 | **Container Apps Environment** | ACA hosting | Consumption | Workload Profiles |
-| **Container App** | Application runtime | 1 replica, 0.25 CPU | 2+ replicas, 0.5 CPU |
+| **Container App** | Application runtime | 0-2 replicas, 0.25 CPU | 2-10 replicas, 0.5 CPU |
 | **Log Analytics** | Centralized logging | 30-day retention | 90-day retention |
+| **Application Insights** | APM & telemetry | Workspace-based | Workspace-based |
+| **Monitoring Dashboard** | Metrics visualization | 6 metric tiles | 6 metric tiles |
+| **Alert Rules** | Automated notifications | 5 rules | 5 rules |
 
 ## 🛠️ Tech Stack
 
@@ -92,6 +96,7 @@ flowchart TB
 | **Containerization** | Docker (multi-stage build) |
 | **Infrastructure** | Terraform 1.5+, Azure Container Apps |
 | **CI/CD** | GitHub Actions |
+| **Observability** | OpenTelemetry, Azure Monitor, Application Insights |
 | **Security Scanning** | Bandit (Python), Checkov (IaC), Trivy (Container) |
 | **Authentication** | Azure Service Principal (Contributor + User Access Administrator) |
 
@@ -187,7 +192,44 @@ feature/* ──PR──▶ dev ──PR──▶ main
                to Dev      to Prod
 ```
 
-## 💻 Local Development
+## � Observability
+
+### OpenTelemetry Integration
+
+The application is instrumented with **OpenTelemetry** for comprehensive observability:
+
+- **Automatic Instrumentation**: FastAPI requests, responses, and errors
+- **Custom Metrics**:
+  - `items_created` - Counter for created items
+  - `items_deleted` - Counter for deleted items  
+  - `item_name_length` - Histogram of item name lengths
+  - `items_in_db` - UpDownCounter tracking database size
+
+### Monitoring Resources
+
+| Resource | Purpose |
+|----------|----------|
+| **Application Insights** | Centralized APM and telemetry collection |
+| **Azure Portal Dashboard** | Real-time metrics visualization (HTTP requests, CPU, memory, replicas) |
+| **Alert Rules** | Automated email notifications for critical issues |
+
+### Alert Configuration
+
+| Alert | Condition | Action |
+|-------|-----------|--------|
+| CPU Usage | > 80% for 5 minutes | Email notification |
+| Memory Usage | > 80% for 5 minutes | Email notification |
+| HTTP 5xx Errors | > 10 per minute | Email notification |
+| Container Restarts | > 3 in 15 minutes | Email notification |
+| Application Errors | Exceptions logged | Email notification |
+
+### Access Monitoring
+
+- **Live Metrics**: View real-time telemetry in Application Insights
+- **Dashboard**: Access via Azure Portal → Dashboards → `dashboard-aca-devops-demo-{env}`
+- **Logs**: Query traces and metrics in Log Analytics workspace
+
+## �💻 Local Development
 
 ### Prerequisites
 
@@ -300,27 +342,52 @@ The App CD workflow will automatically:
 
 ## 🔒 Security
 
+> **📋 Complete security documentation**: See [SECURITY_CHECKLIST.md](docs/SECURITY_CHECKLIST.md) for comprehensive coverage of all security measures.
+
+### Security Highlights
+
+**Multi-Layer Defense**:
+- 🔐 **OIDC Authentication**: Passwordless Azure login (no long-lived secrets)
+- 🛡️ **Branch Protection**: Enforced PR reviews, status checks, no force push
+- 🔍 **4 Security Scanners**: Trivy, Bandit, CodeQL, Checkov
+- 📊 **Full Observability**: OpenTelemetry with Application Insights
+- 🔒 **OWASP Compliance**: Top 10 vulnerabilities addressed
+
 ### Authentication Methods
 
 | Component | Authentication |
 |-----------|----------------|
-| GitHub → Azure | Service Principal (Client ID + Secret) |
-| ACA → ACR | `az acr login` (SP credentials, no admin) |
-| Terraform State | Azure Storage Account Key |
+| GitHub → Azure | **OIDC Federated Credential** (passwordless) |
+| ACA → ACR | Managed Identity (no credentials) |
+| Terraform State | Azure Storage Account with RBAC |
 
 ### Security Scanning
 
 | Stage | Tool | Purpose |
 |-------|------|---------|
-| CI | **flake8** | Python linting |
-| CI | **bandit** | Python security vulnerabilities |
-| CI | **checkov** | Terraform misconfigurations |
-| CD | **trivy** | Container image CVEs |
+| CI | **Ruff** | Python linting & formatting |
+| CI | **Bandit** | Python SAST (security vulnerabilities) |
+| CI | **Checkov** | Terraform security misconfigurations |
+| CD | **Trivy** | Container image CVEs (HIGH/CRITICAL fail build) |
+| Weekly | **CodeQL** | Semantic code analysis |
+| Daily | **Dependabot** | Automated dependency updates |
+
+### Branch Protection (Active)
+
+- ✅ **dev** and **main** branches protected
+- ✅ Require 1 PR approval before merge
+- ✅ Dismiss stale reviews on new commits
+- ✅ CodeQL status check must pass
+- ✅ No force pushes or admin bypass
+- ✅ Linear history enforced
 
 ### Best Practices Implemented
 
-- ✅ No hardcoded secrets (all in GitHub Secrets)
-- ✅ Service Principal with least privilege
+- ✅ Zero secrets in code (environment variables only)
+- ✅ Least privilege RBAC (scoped to resource group)
+- ✅ Non-root container user
+- ✅ Immutable image tags (commit SHA)
+- ✅ Automated security updates (Dependabot)
 - ✅ HTTPS enforced (`allowInsecure: false`)
 - ✅ Multi-stage Docker build (minimal attack surface)
 - ✅ Non-root container user

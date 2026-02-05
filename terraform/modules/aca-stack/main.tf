@@ -104,7 +104,7 @@ resource "azurerm_key_vault" "main" {
   sku_name                    = "standard"
   soft_delete_retention_days  = 7
   purge_protection_enabled    = false # Set to true for production
-  enable_rbac_authorization   = false # Using access policies
+  rbac_authorization_enabled  = false # Using access policies
 
   # Access policy for Terraform (current client) - to manage secrets
   access_policy {
@@ -134,8 +134,6 @@ resource "azurerm_key_vault" "main" {
 # =============================================================================
 
 resource "azurerm_application_insights" "main" {
-  count = var.enable_key_vault ? 1 : 0
-
   name                = "appi-${local.resource_prefix}"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
@@ -154,7 +152,7 @@ resource "azurerm_key_vault_secret" "appinsights_connection_string" {
   count = var.enable_key_vault ? 1 : 0
 
   name         = "appinsights-connection-string"
-  value        = azurerm_application_insights.main[0].connection_string
+  value        = azurerm_application_insights.main.connection_string
   key_vault_id = azurerm_key_vault.main[0].id
 
   depends_on = [azurerm_key_vault.main]
@@ -252,12 +250,21 @@ resource "azurerm_container_app" "main" {
         }
       }
 
-      # Secret-backed environment variable (when Key Vault is enabled)
-      dynamic "env" {
-        for_each = var.enable_key_vault ? [1] : []
-        content {
-          name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
-          secret_name = "appinsights-connection-string"
+# Secret-backed environment variable for Application Insights
+  dynamic "env" {
+    for_each = var.enable_key_vault ? [1] : []
+    content {
+      name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
+      secret_name = "appinsights-connection-string"
+    }
+  }
+
+  # Direct environment variable for Application Insights (when Key Vault is not enabled)
+  dynamic "env" {
+    for_each = var.enable_key_vault ? [] : [1]
+    content {
+      name  = "APPLICATIONINSIGHTS_CONNECTION_STRING"
+      value = azurerm_application_insights.main.connection_string
         }
       }
 
@@ -301,6 +308,6 @@ resource "azurerm_container_app" "main" {
   # Ensure dependencies are complete before deploying
   depends_on = [
     azurerm_role_assignment.acr_pull,
-    azurerm_key_vault_secret.appinsights_connection_string
+    azurerm_application_insights.main
   ]
 }

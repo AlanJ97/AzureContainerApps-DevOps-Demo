@@ -30,3 +30,9 @@ variable "container_port" {
   type        = number
   default     = 8000
 }
+
+variable "alert_email_addresses" {
+  description = "Email addresses to receive alerts"
+  type        = list(string)
+  default     = []
+}
