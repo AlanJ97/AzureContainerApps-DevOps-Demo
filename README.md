@@ -11,8 +11,8 @@
 
 | Environment | URL | Status |
 |-------------|-----|--------|
-| **Dev** | [ca-aca-devops-demo-dev.reddesert-7aa50a55.eastus2.azurecontainerapps.io](https://ca-aca-devops-demo-dev.reddesert-7aa50a55.eastus2.azurecontainerapps.io) | ✅ Live |
-| **Prod** | [ca-aca-devops-demo-prod.purpleforest-1c74a9e0.eastus2.azurecontainerapps.io](https://ca-aca-devops-demo-prod.purpleforest-1c74a9e0.eastus2.azurecontainerapps.io) | ✅ Live |
+| **Dev** | [ca-aca-devops-demo-dev.nicesand-743f89bd.eastus2.azurecontainerapps.io](https://ca-aca-devops-demo-dev.nicesand-743f89bd.eastus2.azurecontainerapps.io) | ✅ Live |
+| **Prod** | [ca-aca-devops-demo-prod.greenrock-fa9a4c07.eastus2.azurecontainerapps.io](https://ca-aca-devops-demo-prod.greenrock-fa9a4c07.eastus2.azurecontainerapps.io) | ✅ Live |
 
 ## 📋 Table of Contents
 
@@ -342,27 +342,52 @@ The App CD workflow will automatically:
 
 ## 🔒 Security
 
+> **📋 Complete security documentation**: See [SECURITY_CHECKLIST.md](docs/SECURITY_CHECKLIST.md) for comprehensive coverage of all security measures.
+
+### Security Highlights
+
+**Multi-Layer Defense**:
+- 🔐 **OIDC Authentication**: Passwordless Azure login (no long-lived secrets)
+- 🛡️ **Branch Protection**: Enforced PR reviews, status checks, no force push
+- 🔍 **4 Security Scanners**: Trivy, Bandit, CodeQL, Checkov
+- 📊 **Full Observability**: OpenTelemetry with Application Insights
+- 🔒 **OWASP Compliance**: Top 10 vulnerabilities addressed
+
 ### Authentication Methods
 
 | Component | Authentication |
 |-----------|----------------|
-| GitHub → Azure | Service Principal (Client ID + Secret) |
-| ACA → ACR | `az acr login` (SP credentials, no admin) |
-| Terraform State | Azure Storage Account Key |
+| GitHub → Azure | **OIDC Federated Credential** (passwordless) |
+| ACA → ACR | Managed Identity (no credentials) |
+| Terraform State | Azure Storage Account with RBAC |
 
 ### Security Scanning
 
 | Stage | Tool | Purpose |
 |-------|------|---------|
-| CI | **flake8** | Python linting |
-| CI | **bandit** | Python security vulnerabilities |
-| CI | **checkov** | Terraform misconfigurations |
-| CD | **trivy** | Container image CVEs |
+| CI | **Ruff** | Python linting & formatting |
+| CI | **Bandit** | Python SAST (security vulnerabilities) |
+| CI | **Checkov** | Terraform security misconfigurations |
+| CD | **Trivy** | Container image CVEs (HIGH/CRITICAL fail build) |
+| Weekly | **CodeQL** | Semantic code analysis |
+| Daily | **Dependabot** | Automated dependency updates |
+
+### Branch Protection (Active)
+
+- ✅ **dev** and **main** branches protected
+- ✅ Require 1 PR approval before merge
+- ✅ Dismiss stale reviews on new commits
+- ✅ CodeQL status check must pass
+- ✅ No force pushes or admin bypass
+- ✅ Linear history enforced
 
 ### Best Practices Implemented
 
-- ✅ No hardcoded secrets (all in GitHub Secrets)
-- ✅ Service Principal with least privilege
+- ✅ Zero secrets in code (environment variables only)
+- ✅ Least privilege RBAC (scoped to resource group)
+- ✅ Non-root container user
+- ✅ Immutable image tags (commit SHA)
+- ✅ Automated security updates (Dependabot)
 - ✅ HTTPS enforced (`allowInsecure: false`)
 - ✅ Multi-stage Docker build (minimal attack surface)
 - ✅ Non-root container user

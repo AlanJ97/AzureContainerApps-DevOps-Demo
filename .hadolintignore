@@ -1,0 +1,5 @@
+# Hadolint ignore file
+# Ignore DL3008: Pin versions for apt-get (build deps only, not in final image)
+DL3008
+# Ignore DL3013: Pin pip version (actual deps pinned in requirements.txt)
+DL3013
